@@ -8,8 +8,9 @@ import FinanceView from "@/components/FinanceView";
 import ReportsView from "@/components/ReportsView";
 import ScheduleView from "@/components/ScheduleView";
 import RecitalView from "@/components/RecitalView";
+import SheetMusicView from "@/components/SheetMusicView";
 
-type View = "dashboard" | "students" | "finance" | "reports" | "schedule" | "recital";
+type View = "dashboard" | "students" | "finance" | "reports" | "schedule" | "recital" | "library";
 
 export default function Home() {
     const [activeView, setActiveView] = useState<View>("dashboard");
@@ -28,6 +29,8 @@ export default function Home() {
                 return <ScheduleView />;
             case "recital":
                 return <RecitalView />;
+            case "library":
+                return <SheetMusicView />;
             default:
                 return <DashboardView onViewChange={setActiveView} />;
         }

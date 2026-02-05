@@ -11,10 +11,11 @@ export interface CalendarEvent {
     description?: string;
 }
 
+const calendarId = process.env.CALENDAR_ID || 'primary';
+
 export async function getLessons(timeMin?: string, timeMax?: string): Promise<CalendarEvent[]> {
     try {
         const calendar = await getCalendarClient();
-        const calendarId = process.env.CALENDAR_ID || 'primary';
 
         // Default to "now until 2 weeks" if no range provided
         let minDate = new Date();
@@ -24,8 +25,6 @@ export async function getLessons(timeMin?: string, timeMax?: string): Promise<Ca
         if (timeMin) minDate = new Date(timeMin);
         if (timeMax) maxDate = new Date(timeMax);
 
-        console.log(`[DEBUG] Fetching events for ${calendarId} from ${minDate.toISOString()} to ${maxDate.toISOString()}`);
-
         try {
             const response = await calendar.events.list({
                 calendarId: calendarId,
@@ -33,7 +32,7 @@ export async function getLessons(timeMin?: string, timeMax?: string): Promise<Ca
                 timeMax: maxDate.toISOString(),
                 singleEvents: true,
                 orderBy: 'startTime',
-                maxResults: 100, // Increased for full month views
+                maxResults: 100,
             });
 
             const events = response.data.items;
@@ -48,20 +47,88 @@ export async function getLessons(timeMin?: string, timeMax?: string): Promise<Ca
                 description: event.description || ""
             }));
         } catch (innerError: any) {
-            console.error(`[DEBUG] Failed to fetch events for '${calendarId}'. Status: ${innerError.code}`);
-            // Try listing available calendars to see if permission is working at all
-            try {
-                const listResp = await calendar.calendarList.list();
-                console.log("[DEBUG] Available Calendars for this Service Account:");
-                listResp.data.items?.forEach(c => console.log(` - ${c.summary} (${c.id})`));
-            } catch (listError) {
-                console.error("[DEBUG] Could not list calendars either.", listError);
-            }
+            console.error(`Failed to fetch events for '${calendarId}'. Status: ${innerError.code}`);
             throw innerError;
         }
 
     } catch (error) {
         console.error("Error fetching calendar events:", error);
         return [];
+    }
+}
+
+// Create a new lesson event
+export async function createLesson(event: Omit<CalendarEvent, "id">) {
+    try {
+        const calendar = await getCalendarClient();
+
+        const response = await calendar.events.insert({
+            calendarId: calendarId,
+            requestBody: {
+                summary: event.title,
+                description: event.description,
+                location: event.location,
+                start: {
+                    dateTime: event.start,
+                    timeZone: 'Asia/Tokyo',
+                },
+                end: {
+                    dateTime: event.end,
+                    timeZone: 'Asia/Tokyo',
+                },
+            },
+        });
+
+        return { success: true, eventId: response.data.id };
+    } catch (error) {
+        console.error("Error creating calendar event:", error);
+        return { success: false, error };
+    }
+}
+
+// Update an existing lesson event
+export async function updateLesson(event: CalendarEvent) {
+    try {
+        const calendar = await getCalendarClient();
+
+        await calendar.events.update({
+            calendarId: calendarId,
+            eventId: event.id,
+            requestBody: {
+                summary: event.title,
+                description: event.description,
+                location: event.location,
+                start: {
+                    dateTime: event.start,
+                    timeZone: 'Asia/Tokyo',
+                },
+                end: {
+                    dateTime: event.end,
+                    timeZone: 'Asia/Tokyo',
+                },
+            },
+        });
+
+        return { success: true };
+    } catch (error) {
+        console.error("Error updating calendar event:", error);
+        return { success: false, error };
+    }
+}
+
+// Delete a lesson event
+export async function deleteLesson(eventId: string) {
+    try {
+        const calendar = await getCalendarClient();
+
+        await calendar.events.delete({
+            calendarId: calendarId,
+            eventId: eventId,
+        });
+
+        return { success: true };
+    } catch (error) {
+        console.error("Error deleting calendar event:", error);
+        return { success: false, error };
     }
 }

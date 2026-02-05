@@ -9,7 +9,7 @@ import { useEffect, useState } from "react";
 
 
 interface DashboardViewProps {
-    onViewChange: (view: "dashboard" | "students" | "finance" | "reports" | "schedule" | "recital") => void;
+    onViewChange: (view: "dashboard" | "students" | "finance" | "reports" | "schedule" | "recital" | "library") => void;
 }
 
 export default function DashboardView({ onViewChange }: DashboardViewProps) {

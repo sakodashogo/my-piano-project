@@ -8,9 +8,10 @@ import {
     Calendar,
     Music,
     Mic2,
+    BookOpen,
 } from "lucide-react";
 
-type View = "dashboard" | "students" | "finance" | "reports" | "schedule" | "recital";
+type View = "dashboard" | "students" | "finance" | "reports" | "schedule" | "recital" | "library";
 
 interface SidebarProps {
     activeView: View;
@@ -24,6 +25,7 @@ const NAV_ITEMS = [
     { id: "reports" as View, label: "レッスン報告", icon: FileText },
     { id: "schedule" as View, label: "スケジュール", icon: Calendar },
     { id: "recital" as View, label: "発表会", icon: Mic2 },
+    { id: "library" as View, label: "楽譜ライブラリ", icon: BookOpen },
 ];
 
 export default function Sidebar({ activeView, onViewChange }: SidebarProps) {

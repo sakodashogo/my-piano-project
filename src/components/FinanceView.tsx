@@ -306,7 +306,7 @@ export default function FinanceView() {
                                 <Tooltip
                                     contentStyle={{ backgroundColor: "#1e293b", border: "1px solid #334155", borderRadius: "12px" }}
                                     labelStyle={{ color: "#f8fafc" }}
-                                    formatter={(value: number) => [`¥${value.toLocaleString()}`, ""]}
+                                    formatter={(value) => [`¥${Number(value).toLocaleString()}`, ""]}
                                 />
                                 <Legend />
                                 <Bar dataKey="income" name="収入" fill="#34d399" radius={[4, 4, 0, 0]} />
