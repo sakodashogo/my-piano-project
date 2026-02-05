@@ -1,6 +1,7 @@
 "use server";
 
 import { getSheetsClient, SPREADSHEET_ID } from "../lib/google";
+import { getCachedData, setCachedData, invalidateCache, CACHE_KEYS } from "../lib/dataCache";
 
 export interface ReportTemplate {
     id: number;
@@ -30,6 +31,12 @@ const DEFAULT_TEMPLATES: ReportTemplate[] = [
 
 // Get all templates (default + custom)
 export async function getTemplates(): Promise<ReportTemplate[]> {
+    // キャッシュがあれば即時返却
+    const cached = getCachedData<ReportTemplate[]>(CACHE_KEYS.TEMPLATES);
+    if (cached) {
+        return cached;
+    }
+
     try {
         const sheets = await getSheetsClient();
         const response = await sheets.spreadsheets.values.get({
@@ -47,7 +54,12 @@ export async function getTemplates(): Promise<ReportTemplate[]> {
             }))
             : [];
 
-        return [...DEFAULT_TEMPLATES, ...customTemplates];
+        const allTemplates = [...DEFAULT_TEMPLATES, ...customTemplates];
+
+        // キャッシュに保存
+        setCachedData(CACHE_KEYS.TEMPLATES, allTemplates);
+
+        return allTemplates;
     } catch (error) {
         console.error("Error fetching templates:", error);
         return DEFAULT_TEMPLATES;
