@@ -1,6 +1,7 @@
 "use server";
 
 import { getSheetsClient, SPREADSHEET_ID } from "../lib/google";
+import { getCachedData, setCachedData, invalidateCache, CACHE_KEYS } from "../lib/dataCache";
 
 export interface Textbook {
     id: number;
@@ -26,6 +27,12 @@ const PROGRESS_SHEET = "TextbookProgress";
 
 // Master Data: Textbooks
 export async function getTextbooks(): Promise<Textbook[]> {
+    // キャッシュがあれば即時返却
+    const cached = getCachedData<Textbook[]>(CACHE_KEYS.TEXTBOOKS);
+    if (cached) {
+        return cached;
+    }
+
     try {
         const sheets = await getSheetsClient();
         const response = await sheets.spreadsheets.values.get({
@@ -36,7 +43,7 @@ export async function getTextbooks(): Promise<Textbook[]> {
         const rows = response.data.values;
         if (!rows) return [];
 
-        return rows.map((row) => ({
+        const textbooks = rows.map((row) => ({
             id: Number(row[0]),
             title: row[1],
             level: row[2],
@@ -44,6 +51,11 @@ export async function getTextbooks(): Promise<Textbook[]> {
             publisher: row[4] || "",
             description: row[5] || "",
         }));
+
+        // キャッシュに保存
+        setCachedData(CACHE_KEYS.TEXTBOOKS, textbooks);
+
+        return textbooks;
     } catch (error) {
         console.error("Error fetching textbooks:", error);
         return [];

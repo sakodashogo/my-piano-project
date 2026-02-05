@@ -1,6 +1,7 @@
 "use server";
 
 import { getSheetsClient, SPREADSHEET_ID } from "../lib/google";
+import { getCachedData, setCachedData, invalidateCache, CACHE_KEYS } from "../lib/dataCache";
 
 interface Piece {
     id: number;
@@ -40,6 +41,14 @@ const SHEET_NAME = "Students";
 const NOTES_SHEET = "LessonNotes";
 
 export async function getStudents(includeArchived: boolean = false): Promise<Student[]> {
+    const cacheKey = includeArchived ? CACHE_KEYS.STUDENTS_ALL : CACHE_KEYS.STUDENTS;
+
+    // キャッシュがあれば即時返却
+    const cached = getCachedData<Student[]>(cacheKey);
+    if (cached) {
+        return cached;
+    }
+
     try {
         const sheets = await getSheetsClient();
         const response = await sheets.spreadsheets.values.get({
@@ -66,10 +75,12 @@ export async function getStudents(includeArchived: boolean = false): Promise<Stu
             archived: row[12] === "TRUE" || row[12] === "true",
         }));
 
-        if (includeArchived) {
-            return students;
-        }
-        return students.filter((s) => !s.archived);
+        const result = includeArchived ? students : students.filter((s) => !s.archived);
+
+        // キャッシュに保存
+        setCachedData(cacheKey, result);
+
+        return result;
     } catch (error) {
         console.error("Error fetching students:", error);
         return [];
@@ -78,10 +89,15 @@ export async function getStudents(includeArchived: boolean = false): Promise<Stu
 
 export async function saveStudent(student: Student) {
     try {
-        const students = await getStudents(true);
-        const existingIndex = students.findIndex((s) => s.id === student.id);
-
         const sheets = await getSheetsClient();
+
+        // ID列のみ取得して行番号を効率的に特定（全データ取得を回避）
+        const idsResponse = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: `${SHEET_NAME}!A2:A`,
+        });
+        const ids = idsResponse.data.values?.map(row => Number(row[0])) || [];
+        const existingIndex = ids.findIndex((id) => id === student.id);
 
         const rowData = [
             student.id,
@@ -119,6 +135,11 @@ export async function saveStudent(student: Student) {
                 },
             });
         }
+
+        // キャッシュを無効化（次回getStudents時に最新データを取得）
+        invalidateCache(CACHE_KEYS.STUDENTS);
+        invalidateCache(CACHE_KEYS.STUDENTS_ALL);
+
         return { success: true };
     } catch (error) {
         console.error("Error saving student:", error);
