@@ -1,0 +1,71 @@
+@import "tailwindcss";
+
+/* ダークテーマベース */
+:root {
+    --background: #0a0a0c;
+    --foreground: #f8f8f2;
+    --card: rgba(255, 255, 255, 0.03);
+    --card-border: rgba(255, 255, 255, 0.08);
+    --accent: #8b5cf6;
+    --accent-light: #c084fc;
+}
+
+body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: "Inter", "Noto Sans JP", sans-serif;
+}
+
+/* Glass Card */
+.glass-card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 1rem;
+    backdrop-filter: blur(12px);
+}
+
+/* Premium Gradient */
+.premium-gradient {
+    background: linear-gradient(135deg, #667eea 0%, #8b5cf6 50%, #a855f7 100%);
+}
+
+/* Text Gradient */
+.text-gradient {
+    background: linear-gradient(135deg, #c084fc 0%, #f472b6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(139, 92, 246, 0.3);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(139, 92, 246, 0.5);
+}
+
+/* Smooth Transitions */
+* {
+    transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
+    transition-duration: 150ms;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Focus States */
+input:focus,
+button:focus,
+select:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.3);
+}
