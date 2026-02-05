@@ -1,21 +1,35 @@
 import { google } from 'googleapis';
 import path from 'path';
 
-// Load the service account key file
-// In production, you might want to load this from an environment variable directly
-// but for this project we'll look for the file.
-const keyFile = path.join(process.cwd(), 'service-account.json');
-
+// Define scopes
 const SCOPES = [
     'https://www.googleapis.com/auth/spreadsheets',
     'https://www.googleapis.com/auth/calendar',
     'https://www.googleapis.com/auth/calendar.events',
 ];
 
-const auth = new google.auth.GoogleAuth({
-    keyFile: keyFile,
-    scopes: SCOPES,
-});
+// Load credentials from Environment Variable (for Vercel) or File (for Local)
+const getAuthOptions = () => {
+    if (process.env.GOOGLE_SERVICE_ACCOUNT_KEY) {
+        try {
+            const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
+            return {
+                credentials,
+                scopes: SCOPES,
+            };
+        } catch (error) {
+            console.error("Failed to parse GOOGLE_SERVICE_ACCOUNT_KEY", error);
+        }
+    }
+
+    // Fallback to local file
+    return {
+        keyFile: path.join(process.cwd(), 'service-account.json'),
+        scopes: SCOPES,
+    };
+};
+
+const auth = new google.auth.GoogleAuth(getAuthOptions());
 
 export const getSheetsClient = async () => {
     const client = await auth.getClient();
