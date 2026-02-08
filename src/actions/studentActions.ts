@@ -287,6 +287,48 @@ export async function deleteLessonNote(studentId: number, noteId: number) {
     }
 }
 
+export async function updateLessonNote(studentId: number, noteId: number, date: string, content: string) {
+    try {
+        const sheets = await getSheetsClient();
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: `${NOTES_SHEET}!A2:E`,
+        });
+
+        const rows = response.data.values || [];
+        const existingIndex = rows.findIndex(
+            (row) => Number(row[0]) === studentId && Number(row[1]) === noteId
+        );
+
+        if (existingIndex === -1) {
+            return { success: false, error: "Note not found" };
+        }
+
+        const rowNumber = existingIndex + 2;
+        const existingRow = rows[existingIndex];
+        const rowData = [
+            studentId,
+            noteId,
+            date,
+            content,
+            existingRow[4] || "[]", // Keep existing pieces
+        ];
+
+        await sheets.spreadsheets.values.update({
+            spreadsheetId: SPREADSHEET_ID,
+            range: `${NOTES_SHEET}!A${rowNumber}:E${rowNumber}`,
+            valueInputOption: "USER_ENTERED",
+            requestBody: {
+                values: [rowData],
+            },
+        });
+        return { success: true };
+    } catch (error) {
+        console.error("Error updating lesson note:", error);
+        return { success: false, error };
+    }
+}
+
 // Update piece cover image
 export async function updatePieceCoverImage(studentId: number, pieceId: number, imageUrl: string) {
     try {

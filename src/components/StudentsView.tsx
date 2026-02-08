@@ -34,11 +34,12 @@ import {
     getLessonNotes,
     addLessonNote,
     deleteLessonNote,
+    updateLessonNote,
     getStudentProgress,
     Student,
     RecitalRecord,
 } from "../actions/studentActions";
-import { getTextbooks, getTextbookProgress, saveTextbookProgress, Textbook, TextbookProgress } from "../actions/textbookActions";
+import { getTextbooks, getTextbookProgress, saveTextbookProgress, updateTextbookCurrentPage, completeTextbook, deleteTextbookProgress, Textbook, TextbookProgress } from "../actions/textbookActions";
 
 type DetailTab = "active" | "completed" | "notes" | "progress" | "textbooks" | "recital";
 
@@ -106,6 +107,12 @@ export default function StudentsView({ initialStudentId }: StudentsViewProps = {
 
     // Recital
     const [isAddRecitalModalOpen, setIsAddRecitalModalOpen] = useState(false);
+
+    // Edit note
+    const [editingNote, setEditingNote] = useState<{ id: number; date: string; content: string } | null>(null);
+
+    // Textbook page editing
+    const [editingTextbookPage, setEditingTextbookPage] = useState<{ textbookId: number; currentPage: number } | null>(null);
 
     const filteredStudents = students.filter((s) =>
         s.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -297,6 +304,62 @@ export default function StudentsView({ initialStudentId }: StudentsViewProps = {
         setIsAddModalOpen(true);
     };
 
+    const handleUpdateNote = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        if (!selectedStudent || !editingNote || isSaving) return;
+        setIsSaving(true);
+        try {
+            const form = e.target as HTMLFormElement;
+            const formData = new FormData(form);
+            await updateLessonNote(
+                selectedStudent.id,
+                editingNote.id,
+                formData.get("date") as string,
+                formData.get("content") as string
+            );
+            await loadLessonNotes(selectedStudent.id);
+            setEditingNote(null);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleUpdateTextbookPage = async (textbookId: number, newPage: number) => {
+        if (!selectedStudent || isSaving) return;
+        setIsSaving(true);
+        try {
+            await updateTextbookCurrentPage(selectedStudent.id, textbookId, newPage);
+            await loadTextbookData(selectedStudent.id);
+            setEditingTextbookPage(null);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleCompleteTextbook = async (textbookId: number) => {
+        if (!selectedStudent || isSaving) return;
+        if (!confirm("この教本を修了にしますか？")) return;
+        setIsSaving(true);
+        try {
+            await completeTextbook(selectedStudent.id, textbookId);
+            await loadTextbookData(selectedStudent.id);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleDeleteTextbook = async (textbookId: number) => {
+        if (!selectedStudent || isSaving) return;
+        if (!confirm("この教本を削除しますか？")) return;
+        setIsSaving(true);
+        try {
+            await deleteTextbookProgress(selectedStudent.id, textbookId);
+            await loadTextbookData(selectedStudent.id);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     return (
         <div className="space-y-6">
             <header className="space-y-4">
@@ -428,30 +491,30 @@ export default function StudentsView({ initialStudentId }: StudentsViewProps = {
                             {activeTab === "active" && (
                                 <>
                                     <button onClick={() => openAddPieceModal(selectedStudent.id)} className="w-full py-4 border-2 border-dashed border-slate-700 hover:border-violet-500/50 rounded-xl text-slate-500 hover:text-violet-400 font-medium flex items-center justify-center gap-2"><Plus className="w-5 h-5" />新しい曲を追加</button>
-                                    {selectedStudent.pieces.filter((p) => p.status === "active").map((piece) => (
-                                        <div key={piece.id} className="glass-card p-5 space-y-4">
-                                            <div className="flex items-start justify-between">
-                                                <div className="flex items-center gap-3">
-                                                    {piece.coverImage ? (
-                                                        <img src={piece.coverImage} alt={piece.title} className="w-12 h-12 rounded-lg object-cover" />
-                                                    ) : (
-                                                        <div className="w-12 h-12 rounded-lg bg-slate-800 flex items-center justify-center">
-                                                            <Music className="w-6 h-6 text-slate-500" />
+                                    {selectedStudent.pieces.filter((p) => p.status === "active").length === 0 ? (
+                                        <p className="text-center py-8 text-slate-600">練習中の曲はまだありません</p>
+                                    ) : (
+                                        selectedStudent.pieces.filter((p) => p.status === "active").map((piece) => (
+                                            <div key={piece.id} className="glass-card p-5">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center gap-3">
+                                                        {piece.coverImage ? (
+                                                            <img src={piece.coverImage} alt={piece.title} className="w-12 h-12 rounded-lg object-cover" />
+                                                        ) : (
+                                                            <div className="w-12 h-12 rounded-lg bg-slate-800 flex items-center justify-center">
+                                                                <Music className="w-6 h-6 text-slate-500" />
+                                                            </div>
+                                                        )}
+                                                        <div>
+                                                            <h4 className="font-semibold text-lg">{piece.title}</h4>
+                                                            <p className="text-sm text-slate-500">開始: {piece.startedAt}</p>
                                                         </div>
-                                                    )}
-                                                    <div>
-                                                        <h4 className="font-semibold text-lg">{piece.title}</h4>
-                                                        <p className="text-sm text-slate-500">開始: {piece.startedAt}</p>
                                                     </div>
+                                                    <button onClick={() => handleCompletePiece(selectedStudent.id, piece.id)} className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-lg font-medium text-sm transition-colors"><Check className="w-4 h-4" />合格！</button>
                                                 </div>
-                                                <button onClick={() => handleCompletePiece(selectedStudent.id, piece.id)} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-lg font-medium text-sm"><Check className="w-4 h-4" />合格！</button>
                                             </div>
-                                            <div>
-                                                <div className="flex justify-between text-sm mb-2"><span className="text-slate-500">進捗</span><span className="text-violet-400 font-medium">{piece.progress}%</span></div>
-                                                <input type="range" min="0" max="100" value={piece.progress} onChange={(e) => handleUpdateProgress(selectedStudent.id, piece.id, parseInt(e.target.value))} className="w-full h-2 bg-slate-800 rounded-full appearance-none cursor-pointer accent-violet-500" />
-                                            </div>
-                                        </div>
-                                    ))}
+                                        ))
+                                    )}
                                 </>
                             )}
 
@@ -484,7 +547,10 @@ export default function StudentsView({ initialStudentId }: StudentsViewProps = {
                                             <div key={note.id} className="glass-card p-5 group">
                                                 <div className="flex items-start justify-between mb-2">
                                                     <p className="text-sm text-blue-400 font-medium">{note.date}</p>
-                                                    <button onClick={() => handleDeleteNote(note.id)} className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-rose-500/20 rounded-lg transition-opacity"><Trash2 className="w-4 h-4 text-rose-400" /></button>
+                                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <button onClick={() => setEditingNote({ id: note.id, date: note.date, content: note.content })} className="p-1.5 hover:bg-blue-500/20 rounded-lg"><Pencil className="w-4 h-4 text-blue-400" /></button>
+                                                        <button onClick={() => handleDeleteNote(note.id)} className="p-1.5 hover:bg-rose-500/20 rounded-lg"><Trash2 className="w-4 h-4 text-rose-400" /></button>
+                                                    </div>
                                                 </div>
                                                 <p className="text-slate-300 whitespace-pre-wrap">{note.content}</p>
                                             </div>
@@ -535,14 +601,42 @@ export default function StudentsView({ initialStudentId }: StudentsViewProps = {
                                                             {prog.status === "completed" ? "修了" : "進行中"}
                                                         </span>
                                                     </div>
-                                                    <div className="space-y-2">
-                                                        <div className="flex justify-between text-sm">
+                                                    <div className="space-y-3">
+                                                        <div className="flex justify-between items-center text-sm">
                                                             <span className="text-slate-400">進捗状況</span>
-                                                            <span className="text-slate-200">{prog.currentPage} / {prog.totalPages} ページ</span>
+                                                            {editingTextbookPage?.textbookId === prog.textbookId ? (
+                                                                <div className="flex items-center gap-2">
+                                                                    <input
+                                                                        type="number"
+                                                                        min="0"
+                                                                        max={prog.totalPages}
+                                                                        value={editingTextbookPage.currentPage}
+                                                                        onChange={(e) => setEditingTextbookPage({ ...editingTextbookPage, currentPage: Math.min(prog.totalPages, Math.max(0, parseInt(e.target.value) || 0)) })}
+                                                                        className="w-16 px-2 py-1 bg-slate-800 border border-slate-600 rounded text-center text-sm"
+                                                                    />
+                                                                    <span className="text-slate-400">/ {prog.totalPages}</span>
+                                                                    <button onClick={() => handleUpdateTextbookPage(prog.textbookId, editingTextbookPage.currentPage)} className="px-2 py-1 bg-amber-500/20 text-amber-400 rounded text-xs font-medium hover:bg-amber-500/30">保存</button>
+                                                                    <button onClick={() => setEditingTextbookPage(null)} className="px-2 py-1 bg-slate-700 text-slate-400 rounded text-xs hover:bg-slate-600">取消</button>
+                                                                </div>
+                                                            ) : (
+                                                                <button onClick={() => setEditingTextbookPage({ textbookId: prog.textbookId, currentPage: prog.currentPage })} className="text-slate-200 hover:text-amber-400">
+                                                                    {prog.currentPage} / {prog.totalPages} ページ
+                                                                </button>
+                                                            )}
                                                         </div>
                                                         <div className="w-full bg-slate-800 rounded-full h-2">
                                                             <div className="bg-amber-500 h-2 rounded-full transition-all duration-500" style={{ width: `${(prog.currentPage / prog.totalPages) * 100}%` }} />
                                                         </div>
+                                                        {prog.status !== "completed" && (
+                                                            <div className="flex gap-2 pt-2">
+                                                                <button onClick={() => handleCompleteTextbook(prog.textbookId)} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-lg text-sm font-medium transition-colors">
+                                                                    <Check className="w-4 h-4" />修了
+                                                                </button>
+                                                                <button onClick={() => handleDeleteTextbook(prog.textbookId)} className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-lg text-sm font-medium transition-colors">
+                                                                    <Trash2 className="w-4 h-4" />削除
+                                                                </button>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </div>
                                             ))}
@@ -719,6 +813,28 @@ export default function StudentsView({ initialStudentId }: StudentsViewProps = {
                                 <textarea name="content" rows={5} required className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl text-slate-100" placeholder="今日のレッスン内容、注意点、次回への課題など..." />
                             </div>
                             <button type="submit" disabled={isSaving} className={`w-full py-4 premium-gradient rounded-xl font-bold text-white shadow-lg ${isSaving ? "opacity-50 cursor-not-allowed" : ""}`}>{isSaving ? "保存中..." : "保存する"}</button>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Edit Note Modal */}
+            {editingNote && selectedStudent && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-6">
+                    <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setEditingNote(null)} />
+                    <div className="relative z-10 w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-8">
+                        <button onClick={() => setEditingNote(null)} className="absolute top-6 right-6 p-2 text-slate-500 hover:text-white"><X className="w-6 h-6" /></button>
+                        <h3 className="text-2xl font-bold text-gradient mb-6">レッスンノートを編集</h3>
+                        <form onSubmit={handleUpdateNote} className="space-y-5">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-400 mb-2">日付</label>
+                                <input name="date" type="date" defaultValue={editingNote.date} required className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl text-slate-100" />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-400 mb-2">レッスン内容・メモ</label>
+                                <textarea name="content" rows={5} defaultValue={editingNote.content} required className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl text-slate-100" placeholder="今日のレッスン内容、注意点、次回への課題など..." />
+                            </div>
+                            <button type="submit" disabled={isSaving} className={`w-full py-4 premium-gradient rounded-xl font-bold text-white shadow-lg ${isSaving ? "opacity-50 cursor-not-allowed" : ""}`}>{isSaving ? "保存中..." : "更新する"}</button>
                         </form>
                     </div>
                 </div>
