@@ -366,7 +366,7 @@ export default function StudentsView({ initialStudentId }: StudentsViewProps = {
                 <div className="flex items-start justify-between gap-4">
                     <div>
                         <h2 className="text-2xl sm:text-3xl font-bold text-gradient mb-1 sm:mb-2">生徒管理</h2>
-                        <p className="text-sm sm:text-base text-slate-400">生徒情報と練習中の曲を管理</p>
+                        <p className="text-sm sm:text-base text-gray-500">生徒情報と練習中の曲を管理</p>
                     </div>
                     <button onClick={() => { setEditingStudent(null); setIsAddModalOpen(true); }} className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2.5 sm:py-3 premium-gradient rounded-xl font-medium text-white shadow-lg hover:shadow-xl transition-all hover:scale-105 text-sm sm:text-base shrink-0">
                         <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -376,7 +376,7 @@ export default function StudentsView({ initialStudentId }: StudentsViewProps = {
                 </div>
                 <button
                     onClick={() => setShowArchived(!showArchived)}
-                    className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${showArchived ? "bg-amber-500/20 border-amber-500/30 text-amber-300" : "bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700"}`}
+                    className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${showArchived ? "bg-amber-500/20 border-amber-500/30 text-amber-600" : "bg-white border-pink-200 text-gray-600 hover:bg-pink-50"}`}
                 >
                     <Archive className="w-4 h-4" />
                     {showArchived ? "アーカイブ中" : "アーカイブを表示"}
@@ -384,16 +384,16 @@ export default function StudentsView({ initialStudentId }: StudentsViewProps = {
             </header>
 
             <div className="relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-                <input type="text" placeholder="生徒名で検索..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-12 pr-4 py-3.5 bg-slate-900/50 border border-slate-800 rounded-xl text-slate-100 placeholder:text-slate-500 focus:border-violet-500/50" />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input type="text" placeholder="生徒名で検索..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-12 pr-4 py-3.5 bg-white border border-pink-200 rounded-xl text-gray-700 placeholder:text-gray-400 focus:border-pink-400 shadow-sm" />
             </div>
 
             {loading ? (
-                <div className="text-center py-12 text-slate-500">読み込み中...</div>
+                <div className="text-center py-12 text-gray-500">読み込み中...</div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {filteredStudents.map((student) => (
-                        <button key={student.id} onClick={() => { setSelectedStudent(student); setActiveTab("active"); }} className={`glass-card p-5 text-left hover:bg-slate-800/50 transition-all group ${student.archived ? "opacity-60" : ""} ${student.status === "休会中" ? "border-amber-500/30" : ""} ${student.status === "退会" ? "border-rose-500/30" : ""}`}>
+                        <button key={student.id} onClick={() => { setSelectedStudent(student); setActiveTab("active"); }} className={`glass-card p-5 text-left hover:bg-pink-50 transition-all group ${student.archived ? "opacity-60" : ""} ${student.status === "休会中" ? "border-amber-400" : ""} ${student.status === "退会" ? "border-rose-400" : ""}`}>
                             <div className="flex items-start gap-4">
                                 <div className={`w-14 h-14 rounded-xl ${student.color} flex items-center justify-center text-white font-bold text-xl shadow-lg`}>{student.name[0]}</div>
                                 <div className="flex-1 min-w-0">
@@ -405,16 +405,16 @@ export default function StudentsView({ initialStudentId }: StudentsViewProps = {
                                         )}
                                         {student.archived && <span className="text-xs px-2 py-0.5 bg-amber-500/20 text-amber-400 rounded-full">アーカイブ</span>}
                                     </div>
-                                    <p className="text-sm text-slate-400 flex items-center gap-1.5 mt-1"><Calendar className="w-3.5 h-3.5" />{student.lessonDay}</p>
-                                    <p className="text-sm text-slate-500 flex items-center gap-1.5 mt-0.5"><MapPin className="w-3.5 h-3.5" />{student.address}</p>
+                                    <p className="text-sm text-gray-500 flex items-center gap-1.5 mt-1"><Calendar className="w-3.5 h-3.5" />{student.lessonDay}</p>
+                                    <p className="text-sm text-gray-400 flex items-center gap-1.5 mt-0.5"><MapPin className="w-3.5 h-3.5" />{student.address}</p>
                                 </div>
-                                <ChevronRight className="w-5 h-5 text-slate-600 group-hover:text-violet-400" />
+                                <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-pink-500" />
                             </div>
-                            <div className="mt-4 pt-4 border-t border-slate-800">
-                                <p className="text-xs text-slate-500 mb-2">練習中: {student.pieces.filter((p) => p.status === "active").length}曲</p>
+                            <div className="mt-4 pt-4 border-t border-pink-100">
+                                <p className="text-xs text-gray-500 mb-2">練習中: {student.pieces.filter((p) => p.status === "active").length}曲</p>
                                 <div className="flex gap-2 flex-wrap">
                                     {student.pieces.filter((p) => p.status === "active").slice(0, 2).map((piece) => (
-                                        <span key={piece.id} className="text-xs px-2.5 py-1 bg-violet-500/10 text-violet-300 rounded-full">{piece.title.length > 12 ? piece.title.slice(0, 12) + "..." : piece.title}</span>
+                                        <span key={piece.id} className="text-xs px-2.5 py-1 bg-pink-100 text-pink-600 rounded-full">{piece.title.length > 12 ? piece.title.slice(0, 12) + "..." : piece.title}</span>
                                     ))}
                                 </div>
                             </div>
@@ -427,8 +427,8 @@ export default function StudentsView({ initialStudentId }: StudentsViewProps = {
             {selectedStudent && (
                 <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6">
                     <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setSelectedStudent(null)} />
-                    <div className="relative z-10 w-full sm:max-w-4xl bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-3xl p-4 sm:p-8 max-h-[90vh] overflow-y-auto safe-area-bottom">
-                        <button onClick={() => setSelectedStudent(null)} className="absolute top-4 right-4 z-20 p-2 text-slate-500 hover:text-white bg-slate-800/80 rounded-full"><X className="w-5 h-5" /></button>
+                    <div className="relative z-10 w-full sm:max-w-4xl bg-white border border-pink-200 rounded-t-3xl sm:rounded-3xl p-4 sm:p-8 max-h-[90vh] overflow-y-auto safe-area-bottom shadow-xl">
+                        <button onClick={() => setSelectedStudent(null)} className="absolute top-4 right-4 z-20 p-2 text-gray-400 hover:text-pink-500 bg-pink-50 rounded-full"><X className="w-5 h-5" /></button>
 
                         <div className="mb-6 sm:mb-8">
                             <div className="flex items-start gap-3 sm:gap-5 pr-10">
@@ -443,19 +443,19 @@ export default function StudentsView({ initialStudentId }: StudentsViewProps = {
                                         {selectedStudent.archived && <span className="text-xs px-2 py-0.5 bg-amber-500/20 text-amber-400 rounded-full">アーカイブ</span>}
                                     </div>
                                     <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1.5 sm:mt-2 text-xs sm:text-sm">
-                                        <p className="text-slate-400 flex items-center gap-1.5"><Phone className="w-3.5 h-3.5" />{selectedStudent.phone}</p>
-                                        <p className="text-slate-500 flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5" />{selectedStudent.address}</p>
-                                        {selectedStudent.email && <p className="text-slate-500 flex items-center gap-1.5"><Mail className="w-3.5 h-3.5" />{selectedStudent.email}</p>}
-                                        {selectedStudent.birthDate && <p className="text-slate-500 flex items-center gap-1.5"><Cake className="w-3.5 h-3.5" />{selectedStudent.birthDate}</p>}
+                                        <p className="text-gray-600 flex items-center gap-1.5"><Phone className="w-3.5 h-3.5" />{selectedStudent.phone}</p>
+                                        <p className="text-gray-500 flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5" />{selectedStudent.address}</p>
+                                        {selectedStudent.email && <p className="text-gray-500 flex items-center gap-1.5"><Mail className="w-3.5 h-3.5" />{selectedStudent.email}</p>}
+                                        {selectedStudent.birthDate && <p className="text-gray-500 flex items-center gap-1.5"><Cake className="w-3.5 h-3.5" />{selectedStudent.birthDate}</p>}
                                     </div>
                                     {(selectedStudent.parentName || selectedStudent.parentPhone) && (
-                                        <div className="mt-1.5 text-xs sm:text-sm text-slate-500 flex items-center gap-1.5 border-t border-slate-800 pt-1.5">
+                                        <div className="mt-1.5 text-xs sm:text-sm text-gray-500 flex items-center gap-1.5 border-t border-pink-100 pt-1.5">
                                             <User className="w-3.5 h-3.5" />
                                             <span>保護者: {selectedStudent.parentName} {selectedStudent.parentPhone && `(${selectedStudent.parentPhone})`}</span>
                                         </div>
                                     )}
                                     {selectedStudent.memo && (
-                                        <div className="mt-1.5 text-xs sm:text-sm text-slate-400 italic bg-slate-800/30 p-2 rounded-lg">
+                                        <div className="mt-1.5 text-xs sm:text-sm text-gray-600 italic bg-pink-50 p-2 rounded-lg">
                                             <FileText className="w-3 h-3 inline mr-1" />
                                             {selectedStudent.memo}
                                         </div>
@@ -470,20 +470,20 @@ export default function StudentsView({ initialStudentId }: StudentsViewProps = {
                                     {selectedStudent.archived ? <ArchiveRestore className="w-4 h-4" /> : <Archive className="w-4 h-4" />}
                                     <span className="hidden sm:inline">{selectedStudent.archived ? "復元" : "アーカイブ"}</span>
                                 </button>
-                                <button onClick={() => openEditModal(selectedStudent)} className="flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-sm font-medium transition-colors">
+                                <button onClick={() => openEditModal(selectedStudent)} className="flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-pink-50 hover:bg-pink-100 text-gray-600 rounded-xl text-sm font-medium transition-colors">
                                     <Pencil className="w-4 h-4" /> <span className="hidden sm:inline">編集</span>
                                 </button>
                             </div>
                         </div>
 
                         {/* Tabs */}
-                        <div className="flex gap-1.5 sm:gap-2 p-1 bg-slate-800/50 rounded-xl mb-4 sm:mb-6 overflow-x-auto no-scrollbar">
-                            <button onClick={() => setActiveTab("active")} className={`flex items-center gap-1.5 px-2.5 sm:px-4 py-2 rounded-lg font-medium text-xs sm:text-sm whitespace-nowrap shrink-0 ${activeTab === "active" ? "bg-violet-500/20 text-violet-300" : "text-slate-500 hover:text-slate-300"}`}><Music className="w-3.5 h-3.5 sm:w-4 sm:h-4" />練習中</button>
-                            <button onClick={() => setActiveTab("completed")} className={`flex items-center gap-1.5 px-2.5 sm:px-4 py-2 rounded-lg font-medium text-xs sm:text-sm whitespace-nowrap shrink-0 ${activeTab === "completed" ? "bg-emerald-500/20 text-emerald-300" : "text-slate-500 hover:text-slate-300"}`}><History className="w-3.5 h-3.5 sm:w-4 sm:h-4" />合格履歴</button>
-                            <button onClick={() => setActiveTab("notes")} className={`flex items-center gap-1.5 px-2.5 sm:px-4 py-2 rounded-lg font-medium text-xs sm:text-sm whitespace-nowrap shrink-0 ${activeTab === "notes" ? "bg-blue-500/20 text-blue-300" : "text-slate-500 hover:text-slate-300"}`}><StickyNote className="w-3.5 h-3.5 sm:w-4 sm:h-4" />ノート</button>
-                            <button onClick={() => setActiveTab("progress")} className={`flex items-center gap-1.5 px-2.5 sm:px-4 py-2 rounded-lg font-medium text-xs sm:text-sm whitespace-nowrap shrink-0 ${activeTab === "progress" ? "bg-pink-500/20 text-pink-300" : "text-slate-500 hover:text-slate-300"}`}><TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />上達</button>
-                            <button onClick={() => setActiveTab("textbooks")} className={`flex items-center gap-1.5 px-2.5 sm:px-4 py-2 rounded-lg font-medium text-xs sm:text-sm whitespace-nowrap shrink-0 ${activeTab === "textbooks" ? "bg-amber-500/20 text-amber-300" : "text-slate-500 hover:text-slate-300"}`}><Book className="w-3.5 h-3.5 sm:w-4 sm:h-4" />教本</button>
-                            <button onClick={() => setActiveTab("recital")} className={`flex items-center gap-1.5 px-2.5 sm:px-4 py-2 rounded-lg font-medium text-xs sm:text-sm whitespace-nowrap shrink-0 ${activeTab === "recital" ? "bg-rose-500/20 text-rose-300" : "text-slate-500 hover:text-slate-300"}`}><Trophy className="w-3.5 h-3.5 sm:w-4 sm:h-4" />発表会</button>
+                        <div className="flex gap-1.5 sm:gap-2 p-1 bg-pink-50 rounded-xl mb-4 sm:mb-6 overflow-x-auto no-scrollbar">
+                            <button onClick={() => setActiveTab("active")} className={`flex items-center gap-1.5 px-2.5 sm:px-4 py-2 rounded-lg font-medium text-xs sm:text-sm whitespace-nowrap shrink-0 ${activeTab === "active" ? "bg-pink-200 text-pink-700" : "text-gray-500 hover:text-pink-500"}`}><Music className="w-3.5 h-3.5 sm:w-4 sm:h-4" />練習中</button>
+                            <button onClick={() => setActiveTab("completed")} className={`flex items-center gap-1.5 px-2.5 sm:px-4 py-2 rounded-lg font-medium text-xs sm:text-sm whitespace-nowrap shrink-0 ${activeTab === "completed" ? "bg-emerald-100 text-emerald-600" : "text-gray-500 hover:text-emerald-500"}`}><History className="w-3.5 h-3.5 sm:w-4 sm:h-4" />合格履歴</button>
+                            <button onClick={() => setActiveTab("notes")} className={`flex items-center gap-1.5 px-2.5 sm:px-4 py-2 rounded-lg font-medium text-xs sm:text-sm whitespace-nowrap shrink-0 ${activeTab === "notes" ? "bg-blue-100 text-blue-600" : "text-gray-500 hover:text-blue-500"}`}><StickyNote className="w-3.5 h-3.5 sm:w-4 sm:h-4" />ノート</button>
+                            <button onClick={() => setActiveTab("progress")} className={`flex items-center gap-1.5 px-2.5 sm:px-4 py-2 rounded-lg font-medium text-xs sm:text-sm whitespace-nowrap shrink-0 ${activeTab === "progress" ? "bg-pink-100 text-pink-600" : "text-gray-500 hover:text-pink-500"}`}><TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />上達</button>
+                            <button onClick={() => setActiveTab("textbooks")} className={`flex items-center gap-1.5 px-2.5 sm:px-4 py-2 rounded-lg font-medium text-xs sm:text-sm whitespace-nowrap shrink-0 ${activeTab === "textbooks" ? "bg-amber-100 text-amber-600" : "text-gray-500 hover:text-amber-500"}`}><Book className="w-3.5 h-3.5 sm:w-4 sm:h-4" />教本</button>
+                            <button onClick={() => setActiveTab("recital")} className={`flex items-center gap-1.5 px-2.5 sm:px-4 py-2 rounded-lg font-medium text-xs sm:text-sm whitespace-nowrap shrink-0 ${activeTab === "recital" ? "bg-rose-100 text-rose-600" : "text-gray-500 hover:text-rose-500"}`}><Trophy className="w-3.5 h-3.5 sm:w-4 sm:h-4" />発表会</button>
                         </div>
 
                         {/* Tab Content */}

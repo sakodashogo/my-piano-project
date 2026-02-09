@@ -1,19 +1,25 @@
 @import "tailwindcss";
 
-/* ダークテーマベース */
+/* 明るく親しみのあるテーマ */
 :root {
-    --background: #0a0a0c;
-    --foreground: #f8f8f2;
-    --card: rgba(255, 255, 255, 0.03);
-    --card-border: rgba(255, 255, 255, 0.08);
-    --accent: #8b5cf6;
-    --accent-light: #c084fc;
+    --background: #fffbf8;
+    --foreground: #3d3d3d;
+    --card: rgba(255, 255, 255, 0.85);
+    --card-border: rgba(255, 182, 193, 0.3);
+    --accent: #ff7b9c;
+    --accent-light: #ffa5b4;
+    --accent-dark: #e85d7e;
+    --secondary: #ffd6e0;
+    --warm-yellow: #fff3cd;
+    --soft-coral: #ffb4a2;
+    --mint-green: #b8e0d2;
 }
 
 body {
-    background: var(--background);
+    background: linear-gradient(135deg, var(--background) 0%, #fff0f3 50%, #fef6e4 100%);
     color: var(--foreground);
     font-family: "Inter", "Noto Sans JP", sans-serif;
+    min-height: 100vh;
 }
 
 /* Glass Card */
@@ -22,16 +28,17 @@ body {
     border: 1px solid var(--card-border);
     border-radius: 1rem;
     backdrop-filter: blur(12px);
+    box-shadow: 0 4px 20px rgba(255, 123, 156, 0.1);
 }
 
-/* Premium Gradient */
+/* Premium Gradient - 明るいコーラルピンク */
 .premium-gradient {
-    background: linear-gradient(135deg, #667eea 0%, #8b5cf6 50%, #a855f7 100%);
+    background: linear-gradient(135deg, #ff9a9e 0%, #ff7b9c 50%, #fecfef 100%);
 }
 
-/* Text Gradient */
+/* Text Gradient - 温かみのあるピンク系 */
 .text-gradient {
-    background: linear-gradient(135deg, #c084fc 0%, #f472b6 100%);
+    background: linear-gradient(135deg, #ff7b9c 0%, #ff9a9e 50%, #fad0c4 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -43,16 +50,16 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-    background: transparent;
+    background: rgba(255, 214, 224, 0.2);
 }
 
 ::-webkit-scrollbar-thumb {
-    background: rgba(139, 92, 246, 0.3);
+    background: rgba(255, 123, 156, 0.4);
     border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: rgba(139, 92, 246, 0.5);
+    background: rgba(255, 123, 156, 0.6);
 }
 
 /* Smooth Transitions */
@@ -67,7 +74,7 @@ input:focus,
 button:focus,
 select:focus {
     outline: none;
-    box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.3);
+    box-shadow: 0 0 0 2px rgba(255, 123, 156, 0.4);
 }
 
 /* Mobile Touch Improvements */
