@@ -253,11 +253,11 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
                 <div className="lg:col-span-2 space-y-6">
                     <section className="glass-card h-full">
                         <div className="p-4 border-b border-card-border flex justify-between items-center">
-                            <div className="flex items-center gap-4">
-                                <h3 className="text-lg font-semibold flex items-center gap-2 text-t-primary">
-                                    <Calendar className="w-5 h-5 text-accent" />
-                                    {isToday ? "今日のレッスン" : `${selectedDate.getMonth() + 1}/${selectedDate.getDate()}(${weekday})のレッスン`}
-                                </h3>
+                            <h3 className="text-lg font-semibold flex items-center gap-2 text-t-primary">
+                                <Calendar className="w-5 h-5 text-accent" />
+                                {isToday ? "今日のレッスン" : `${selectedDate.getMonth() + 1}/${selectedDate.getDate()}(${weekday})のレッスン`}
+                            </h3>
+                            <div className="flex items-center gap-2">
                                 {/* Navigation */}
                                 <div className="flex items-center bg-card-bg-hover rounded-lg p-1 gap-1">
                                     <button
@@ -281,13 +281,13 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
                                         <ChevronRight className="w-5 h-5" />
                                     </button>
                                 </div>
+                                <button
+                                    onClick={() => onNavigate("schedule")}
+                                    className="text-xs text-accent hover:underline"
+                                >
+                                    全て見る
+                                </button>
                             </div>
-                            <button
-                                onClick={() => onNavigate("schedule")}
-                                className="text-xs text-accent hover:underline"
-                            >
-                                全て見る
-                            </button>
                         </div>
                         <div className="divide-y divide-card-border">
                             {todaysLessons.length === 0 ? (
