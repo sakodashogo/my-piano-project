@@ -3,25 +3,107 @@
 import { useState, useEffect } from "react";
 import { Copy, Check, Music, Sparkles, Plus, X, Pencil, Trash2, History } from "lucide-react";
 import { getStudents, Student } from "../actions/studentActions";
-import { getTemplates, saveTemplate, updateTemplate, deleteTemplate, getReportHistory, saveReportHistory, ReportTemplate, ReportHistory } from "../actions/reportActions";
+
+import { getReportHistory, saveReportHistory, ReportHistory } from "../actions/reportActions";
 
 type TabType = "report" | "history";
 
 export default function ReportsView() {
     const [students, setStudents] = useState<Student[]>([]);
-    const [templates, setTemplates] = useState<ReportTemplate[]>([]);
+
     const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
-    const [selectedTemplate, setSelectedTemplate] = useState<ReportTemplate | null>(null);
-    const [customText, setCustomText] = useState("");
-    const [nextGoal, setNextGoal] = useState("");
-    const [copied, setCopied] = useState(false);
+    const [selectedBody, setSelectedBody] = useState<string>("");
+    const [selectedClosing, setSelectedClosing] = useState<string>("");
     const [activeTab, setActiveTab] = useState<TabType>("report");
 
-    // Template editing
-    const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
-    const [editingTemplate, setEditingTemplate] = useState<ReportTemplate | null>(null);
-    const [isSaving, setIsSaving] = useState(false);
+    // Report fields
+    const [customText, setCustomText] = useState("");
+    const [nextGoal, setNextGoal] = useState("");
+    const [adviceText, setAdviceText] = useState("");
+    const [copied, setCopied] = useState(false);
 
+    // Auto-generated suggestions
+    const SUGGESTIONS = {
+        goodPoints: [
+            "リズム感が安定してきました",
+            "譜読みが早くなりました",
+            "指の形がとても綺麗です",
+            "強弱の表現が豊かになりました",
+            "集中して練習に取り組めました",
+            "難しいパッセージもスムーズに弾けました",
+            "左手の伴奏が安定してきました",
+            "ペダリングが上手になりました",
+            "テンポをキープできています",
+            "全体を通して流れが良くなりました"
+        ],
+        nextGoals: [
+            "指の形を意識しましょう",
+            "強弱記号に注意しましょう",
+            "スラーとスタッカートの弾き分けを大切に",
+            "手首の力を抜いて弾きましょう",
+            "テンポを一定に保つ練習をしましょう",
+            "左手の音量バランスに気をつけましょう",
+            "フレーズの終わりを丁寧に",
+            "休符しっかりと数えましょう",
+            "指番号を守って練習しましょう",
+            "暗譜に挑戦してみましょう"
+        ],
+        advice: [
+            "片手ずつの練習を大切に",
+            "メトロノームを使って練習しましょう",
+            "録音して自分の音を聴いてみましょう",
+            "難しい箇所はリズム変奏で練習すると良いです",
+            "最初はゆっくり、徐々にテンポを上げましょう",
+            "楽譜に書き込みをして注意点を忘れないように",
+            "練習の前に指の体操をすると良いですよ",
+            "毎日少しずつでもピアノに触れましょう",
+            "好きな曲を聴いてイメージを膨らませましょう",
+            "リラックスして演奏することを心がけましょう"
+        ]
+    };
+
+    const getRandomSuggestion = (category: keyof typeof SUGGESTIONS) => {
+        const list = SUGGESTIONS[category];
+        const randomIndex = Math.floor(Math.random() * list.length);
+        return list[randomIndex];
+    };
+
+    const handleShuffle = (category: keyof typeof SUGGESTIONS) => {
+        const suggestion = getRandomSuggestion(category);
+        if (category === "goodPoints") setCustomText(suggestion);
+        if (category === "nextGoals") setNextGoal(suggestion);
+        if (category === "advice") setAdviceText(suggestion);
+    };
+
+    // Body sentences (10 patterns)
+    const BODY_SENTENCES = [
+        "{曲名}、順調に進んでいます。特に{良かった点}が素晴らしかったです。",
+        "今日は{曲名}に集中して取り組みました。{良かった点}がとても良くなっていて、日々の練習の成果が出ていますね！",
+        "{曲名}、少し難しい箇所がありましたが、焦らず一緒に進めていきましょう。{アドバイス}",
+        "{曲名}の練習を通して、大きな成長が見られました！特に{良かった点}の上達が素晴らしいです。",
+        "{曲名}、もう少しで仕上がりそうですね。{良かった点}が特に良くなってきました。",
+        "今日から{曲名}に挑戦しましたね。初めてでしたが、{良かった点}が既にできていて素晴らしかったです。",
+        "{曲名}の練習で、リズム感がとても良くなってきましたね！{良かった点}も素晴らしかったです。",
+        "{曲名}、表現力が格段にアップしていますね！{良かった点}の表現が特に印象的でした。",
+        "今日は基礎練習を中心に行いました。{良かった点}がしっかりできていて、着実に力がついています。",
+        "発表会で演奏する{曲名}の練習を進めました。{良かった点}が特に良く、本番が楽しみです！"
+    ];
+
+    // Closing sentences (10 patterns)
+    const CLOSING_SENTENCES = [
+        "次回も{次回の目標}を中心に練習してみてください。引き続きよろしくお願いいたします！",
+        "次回のレッスンまでに{次回の目標}を意識して練習してみてくださいね。",
+        "次回は{次回の目標}から始めますね。引き続きよろしくお願いいたします！",
+        "この調子で、次は{次回の目標}にチャレンジしてみましょう。楽しみにしています！",
+        "仕上げとして{次回の目標}を意識して、丁寧に練習してみてください。",
+        "次回は{次回の目標}を中心に進めていきましょう！",
+        "引き続き{次回の目標}に取り組んでいきましょう。頑張ってください！",
+        "次回は{次回の目標}を意識して、さらに深みのある演奏を目指しましょう。",
+        "次回は{曲名}を使って{次回の目標}を確認していきますね。",
+        "{次回の目標}を中心に仕上げていきましょう。応援しています！"
+    ];
+
+    // Template editing - removed
     // History
     const [reportHistory, setReportHistory] = useState<ReportHistory[]>([]);
     const [loadingHistory, setLoadingHistory] = useState(false);
@@ -31,13 +113,11 @@ export default function ReportsView() {
     }, []);
 
     const loadData = async () => {
-        const [studentData, templateData] = await Promise.all([
-            getStudents(),
-            getTemplates(),
-        ]);
+        const studentData = await getStudents();
         setStudents(studentData);
-        setTemplates(templateData);
-        if (templateData.length > 0) setSelectedTemplate(templateData[0]);
+        // Default selections
+        if (BODY_SENTENCES.length > 0) setSelectedBody(BODY_SENTENCES[0]);
+        if (CLOSING_SENTENCES.length > 0) setSelectedClosing(CLOSING_SENTENCES[0]);
     };
 
     useEffect(() => {
@@ -52,21 +132,22 @@ export default function ReportsView() {
     };
 
     const generateMessage = () => {
-        if (!selectedStudent || !selectedTemplate) return "生徒とテンプレートを選択してください";
+        if (!selectedStudent) return "生徒を選択してください";
+        if (!selectedBody || !selectedClosing) return "文章パターンを選択してください";
 
-        let message = selectedTemplate.text;
+        let message = "本日のレッスンもお疲れ様でした！\n\n" + selectedBody + "\n\n" + selectedClosing;
         const activePiece = selectedStudent.pieces.find((p) => p.status === "active");
         const pieceTitle = activePiece ? activePiece.title : "練習曲";
 
-        message = message.replace("{曲名}", pieceTitle);
-        message = message.replace("{良かった点}", customText || "リズム感");
-        message = message.replace("{次回の目標}", nextGoal || "表現力");
-        message = message.replace("{アドバイス}", customText || "ゆっくり片手ずつ練習してみてください");
+        message = message.replace(/{曲名}/g, pieceTitle);
+        message = message.replace(/{良かった点}/g, customText || getRandomSuggestion("goodPoints"));
+        message = message.replace(/{次回の目標}/g, nextGoal || getRandomSuggestion("nextGoals"));
+        message = message.replace(/{アドバイス}/g, adviceText || getRandomSuggestion("advice"));
         return message;
     };
 
     const handleCopy = async () => {
-        if (!selectedStudent || !selectedTemplate) return;
+        if (!selectedStudent) return;
         const message = generateMessage();
         navigator.clipboard.writeText(message);
         setCopied(true);
@@ -78,41 +159,8 @@ export default function ReportsView() {
             studentName: selectedStudent.name,
             date: new Date().toLocaleString("ja-JP"),
             message,
-            templateLabel: selectedTemplate.label,
+            templateLabel: "カスタム報告",
         });
-    };
-
-    const handleSaveTemplate = async (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
-        if (isSaving) return;
-        setIsSaving(true);
-        try {
-            const form = e.target as HTMLFormElement;
-            const formData = new FormData(form);
-
-            const templateData = {
-                label: formData.get("label") as string,
-                text: formData.get("text") as string,
-            };
-
-            if (editingTemplate && editingTemplate.isCustom) {
-                await updateTemplate({ ...editingTemplate, ...templateData });
-            } else {
-                await saveTemplate(templateData);
-            }
-
-            await loadData();
-            setIsTemplateModalOpen(false);
-            setEditingTemplate(null);
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
-    const handleDeleteTemplate = async (templateId: number) => {
-        if (!confirm("このテンプレートを削除しますか？")) return;
-        await deleteTemplate(templateId);
-        await loadData();
     };
 
     return (
@@ -157,36 +205,36 @@ export default function ReportsView() {
                             )}
                         </div>
 
-                        {/* Template selector */}
-                        <div className="glass-card p-6">
-                            <div className="flex items-center justify-between mb-3">
-                                <label className="text-sm font-medium text-gray-600">テンプレートを選択</label>
-                                <button onClick={() => { setEditingTemplate(null); setIsTemplateModalOpen(true); }} className="text-xs text-pink-500 hover:text-pink-600 flex items-center gap-1">
-                                    <Plus className="w-3 h-3" />新規作成
-                                </button>
+                        {/* Template selector replacement: Modular selectors */}
+                        <div className="glass-card p-6 space-y-6">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-600 mb-3">1. 本文を選択</label>
+                                <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
+                                    {BODY_SENTENCES.map((text, idx) => (
+                                        <button
+                                            key={idx}
+                                            onClick={() => setSelectedBody(text)}
+                                            className={`w-full p-3 rounded-xl text-left text-sm transition-colors ${selectedBody === text ? "bg-pink-100 border border-pink-300 ring-1 ring-pink-300" : "bg-white border border-pink-200 hover:bg-pink-50"}`}
+                                        >
+                                            {text}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
-                            <div className="space-y-2">
-                                {templates.map((template) => (
-                                    <button
-                                        key={template.id}
-                                        onClick={() => setSelectedTemplate(template)}
-                                        className={`w-full p-4 rounded-xl text-left flex items-center gap-2 transition-colors ${selectedTemplate?.id === template.id ? "bg-pink-100 border border-pink-300" : "bg-white border border-pink-200 hover:bg-pink-50"}`}
-                                    >
-                                        <div className="flex-1">
-                                            <p className="font-medium flex items-center gap-2 text-gray-700">
-                                                <Sparkles className="w-4 h-4 text-pink-500" />
-                                                {template.label}
-                                                {template.isCustom && <span className="text-xs px-2 py-0.5 bg-pink-100 text-pink-600 rounded-full">カスタム</span>}
-                                            </p>
-                                        </div>
-                                        {template.isCustom && (
-                                            <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                                                <button onClick={() => { setEditingTemplate(template); setIsTemplateModalOpen(true); }} className="p-1.5 hover:bg-gray-100 rounded-lg"><Pencil className="w-3.5 h-3.5 text-gray-600" /></button>
-                                                <button onClick={() => handleDeleteTemplate(template.id)} className="p-1.5 hover:bg-rose-100 rounded-lg"><Trash2 className="w-3.5 h-3.5 text-rose-600" /></button>
-                                            </div>
-                                        )}
-                                    </button>
-                                ))}
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-600 mb-3">2. 締めを選択</label>
+                                <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
+                                    {CLOSING_SENTENCES.map((text, idx) => (
+                                        <button
+                                            key={idx}
+                                            onClick={() => setSelectedClosing(text)}
+                                            className={`w-full p-3 rounded-xl text-left text-sm transition-colors ${selectedClosing === text ? "bg-pink-100 border border-pink-300 ring-1 ring-pink-300" : "bg-white border border-pink-200 hover:bg-pink-50"}`}
+                                        >
+                                            {text}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
                         </div>
 
@@ -194,11 +242,30 @@ export default function ReportsView() {
                         <div className="glass-card p-6 space-y-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-600 mb-2">今日良かった点</label>
-                                <input type="text" value={customText} onChange={(e) => setCustomText(e.target.value)} className="w-full px-4 py-3 bg-white border border-pink-200 rounded-xl text-gray-700 placeholder:text-gray-400" placeholder="例: テンポが安定していた" />
+                                <div className="flex gap-2">
+                                    <input type="text" value={customText} onChange={(e) => setCustomText(e.target.value)} className="flex-1 px-4 py-3 bg-white border border-pink-200 rounded-xl text-gray-700 placeholder:text-gray-400" placeholder="例: テンポが安定していた" />
+                                    <button onClick={() => handleShuffle("goodPoints")} className="p-3 bg-pink-100 hover:bg-pink-200 text-pink-600 rounded-xl transition-colors" title="ランダムに入力">
+                                        <Sparkles className="w-5 h-5" />
+                                    </button>
+                                </div>
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-600 mb-2">次回の目標</label>
-                                <input type="text" value={nextGoal} onChange={(e) => setNextGoal(e.target.value)} className="w-full px-4 py-3 bg-white border border-pink-200 rounded-xl text-gray-700 placeholder:text-gray-400" placeholder="例: 表現力を意識する" />
+                                <div className="flex gap-2">
+                                    <input type="text" value={nextGoal} onChange={(e) => setNextGoal(e.target.value)} className="flex-1 px-4 py-3 bg-white border border-pink-200 rounded-xl text-gray-700 placeholder:text-gray-400" placeholder="例: 表現力を意識する" />
+                                    <button onClick={() => handleShuffle("nextGoals")} className="p-3 bg-pink-100 hover:bg-pink-200 text-pink-600 rounded-xl transition-colors" title="ランダムに入力">
+                                        <Sparkles className="w-5 h-5" />
+                                    </button>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-600 mb-2">アドバイス</label>
+                                <div className="flex gap-2">
+                                    <input type="text" value={adviceText} onChange={(e) => setAdviceText(e.target.value)} className="flex-1 px-4 py-3 bg-white border border-pink-200 rounded-xl text-gray-700 placeholder:text-gray-400" placeholder="例: 片手ずつ練習しましょう" />
+                                    <button onClick={() => handleShuffle("advice")} className="p-3 bg-pink-100 hover:bg-pink-200 text-pink-600 rounded-xl transition-colors" title="ランダムに入力">
+                                        <Sparkles className="w-5 h-5" />
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -207,7 +274,7 @@ export default function ReportsView() {
                     <div className="glass-card p-6 flex flex-col">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="font-semibold text-lg text-gray-700">プレビュー</h3>
-                            <button onClick={handleCopy} disabled={!selectedStudent || !selectedTemplate} className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium ${copied ? "bg-emerald-100 text-emerald-700" : "bg-pink-100 text-pink-600 hover:bg-pink-200 disabled:opacity-50 disabled:cursor-not-allowed"}`}>
+                            <button onClick={handleCopy} disabled={!selectedStudent || !selectedBody || !selectedClosing} className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium ${copied ? "bg-emerald-100 text-emerald-700" : "bg-pink-100 text-pink-600 hover:bg-pink-200 disabled:opacity-50 disabled:cursor-not-allowed"}`}>
                                 {copied ? <><Check className="w-4 h-4" />コピーしました</> : <><Copy className="w-4 h-4" />コピー</>}
                             </button>
                         </div>
@@ -243,28 +310,7 @@ export default function ReportsView() {
                 </div>
             )}
 
-            {/* Template Modal */}
-            {isTemplateModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
-                    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setIsTemplateModalOpen(false)} />
-                    <div className="relative z-10 w-full max-w-lg bg-white border border-pink-200 rounded-3xl p-8 shadow-2xl">
-                        <button onClick={() => setIsTemplateModalOpen(false)} className="absolute top-6 right-6 p-2 text-gray-400 hover:text-gray-700"><X className="w-6 h-6" /></button>
-                        <h3 className="text-2xl font-bold text-gradient mb-6">{editingTemplate ? "テンプレートを編集" : "新規テンプレート"}</h3>
-                        <form onSubmit={handleSaveTemplate} className="space-y-5">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-600 mb-2">テンプレート名</label>
-                                <input name="label" required defaultValue={editingTemplate?.label} className="w-full px-4 py-3 bg-white border border-pink-200 rounded-xl text-gray-700" placeholder="例: 発表会に向けて" />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-600 mb-2">テンプレート内容</label>
-                                <textarea name="text" rows={8} required defaultValue={editingTemplate?.text} className="w-full px-4 py-3 bg-white border border-pink-200 rounded-xl text-gray-700" placeholder="利用可能な変数: {曲名}, {良かった点}, {次回の目標}, {アドバイス}" />
-                                <p className="text-xs text-gray-500 mt-2">変数: {"{曲名}"}, {"{良かった点}"}, {"{次回の目標}"}, {"{アドバイス}"}</p>
-                            </div>
-                            <button type="submit" disabled={isSaving} className={`w-full py-4 premium-gradient rounded-xl font-bold text-white shadow-lg ${isSaving ? "opacity-50 cursor-not-allowed" : ""}`}>{isSaving ? "保存中..." : (editingTemplate ? "更新する" : "保存する")}</button>
-                        </form>
-                    </div>
-                </div>
-            )}
+
         </div>
     );
 }
