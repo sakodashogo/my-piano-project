@@ -252,8 +252,8 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
                 {/* Left Column: Today's Schedule */}
                 <div className="lg:col-span-2 space-y-6">
                     <section className="glass-card h-full">
-                        <div className="p-4 border-b border-card-border flex justify-between items-center">
-                            <h3 className="text-lg font-semibold flex items-center gap-2 text-t-primary">
+                        <div className="p-3 sm:p-4 border-b border-card-border flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+                            <h3 className="text-base sm:text-lg font-semibold flex items-center gap-2 text-t-primary">
                                 <Calendar className="w-5 h-5 text-accent" />
                                 {isToday ? "今日のレッスン" : `${selectedDate.getMonth() + 1}/${selectedDate.getDate()}(${weekday})のレッスン`}
                             </h3>
@@ -283,7 +283,7 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
                                 </div>
                                 <button
                                     onClick={() => onNavigate("schedule")}
-                                    className="text-sm text-accent hover:underline"
+                                    className="text-sm text-accent hover:underline whitespace-nowrap"
                                 >
                                     全て見る
                                 </button>

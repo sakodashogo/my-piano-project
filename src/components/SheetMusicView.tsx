@@ -88,18 +88,18 @@ export default function SheetMusicView() {
 
     return (
         <div className="space-y-6">
-            <header className="flex items-center justify-between flex-wrap gap-4">
+            <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                    <h2 className="text-3xl font-bold text-gradient mb-2">楽譜ライブラリ</h2>
-                    <p className="text-gray-500">教本・楽譜のカタログを管理</p>
+                    <h2 className="text-2xl sm:text-3xl font-bold text-gradient mb-1 sm:mb-2">楽譜ライブラリ</h2>
+                    <p className="text-sm sm:text-base text-gray-500">教本・楽譜のカタログを管理</p>
                 </div>
-                <button onClick={() => { setEditingMusic(null); setIsAddModalOpen(true); }} className="flex items-center gap-2 px-5 py-3 premium-gradient rounded-xl font-medium text-white shadow-lg hover:shadow-xl transition-all hover:scale-105">
+                <button onClick={() => { setEditingMusic(null); setIsAddModalOpen(true); }} className="flex items-center justify-center gap-2 px-5 py-3 premium-gradient rounded-xl font-medium text-white shadow-lg hover:shadow-xl transition-all sm:hover:scale-105 w-full sm:w-auto">
                     <Plus className="w-5 h-5" />楽譜を追加
                 </button>
             </header>
 
             {/* Search and Sort */}
-            <div className="flex gap-4">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                 <div className="relative flex-1">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-t-muted" />
                     <input type="text" placeholder="曲名・作曲者で検索..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-12 pr-4 py-3.5 bg-input-bg border border-input-border rounded-xl text-input-text placeholder:text-t-placeholder focus:border-input-border-focus" />

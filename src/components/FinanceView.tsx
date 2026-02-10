@@ -474,70 +474,69 @@ export default function FinanceView() {
     });
 
     return (
-        <div className="space-y-6">
-            <header className="flex items-center justify-between flex-wrap gap-4">
+        <div className="space-y-4 sm:space-y-6">
+            <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                    <h2 className="text-3xl font-bold text-gradient mb-2">レッスン料・経費管理</h2>
-                    <p className="text-gray-500">収入と支出を記録・管理</p>
+                    <h2 className="text-2xl sm:text-3xl font-bold text-gradient mb-1 sm:mb-2">レッスン料・経費管理</h2>
+                    <p className="text-sm sm:text-base text-gray-500">収入と支出を記録・管理</p>
                 </div>
-                <div className="flex items-center gap-3 flex-wrap">
+                <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                     {/* Month Selector */}
-                    <div className="flex items-center gap-2 bg-card-solid p-1.5 rounded-xl border border-card-border">
-                        <button onClick={handlePrevMonth} className="p-2 hover:bg-accent-bg-hover rounded-lg transition-colors">
+                    <div className="flex items-center gap-1 sm:gap-2 bg-card-solid p-1 sm:p-1.5 rounded-xl border border-card-border">
+                        <button onClick={handlePrevMonth} className="p-1.5 sm:p-2 hover:bg-accent-bg-hover rounded-lg transition-colors">
                             <ChevronLeft className="w-4 h-4 text-t-secondary" />
                         </button>
-                        <span className="font-medium text-sm min-w-[100px] text-center text-t-primary">{formatMonthYear(selectedDate)}</span>
-                        <button onClick={handleNextMonth} className="p-2 hover:bg-accent-bg-hover rounded-lg transition-colors">
+                        <span className="font-medium text-xs sm:text-sm min-w-[80px] sm:min-w-[100px] text-center text-t-primary">{formatMonthYear(selectedDate)}</span>
+                        <button onClick={handleNextMonth} className="p-1.5 sm:p-2 hover:bg-accent-bg-hover rounded-lg transition-colors">
                             <ChevronRight className="w-4 h-4 text-t-secondary" />
                         </button>
                     </div>
-                    <button onClick={handleExportCSV} className="flex items-center gap-2 px-4 py-2.5 bg-card-solid hover:bg-accent-bg-hover border border-card-border rounded-xl font-medium text-t-primary">
+                    <button onClick={handleExportCSV} className="flex items-center gap-1.5 px-3 sm:px-4 py-2 sm:py-2.5 bg-card-solid hover:bg-accent-bg-hover border border-card-border rounded-xl font-medium text-sm sm:text-base text-t-primary">
                         <Download className="w-4 h-4" />CSV出力
                     </button>
-                    <button onClick={() => { setEditingTransaction(null); setAddType("expense"); setIsAddModalOpen(true); }} className="flex items-center gap-2 px-5 py-2.5 premium-gradient rounded-xl font-medium text-white shadow-lg hover:shadow-xl">
-                        <Plus className="w-5 h-5" />記録を追加
+                    <button onClick={() => { setEditingTransaction(null); setAddType("expense"); setIsAddModalOpen(true); }} className="flex items-center gap-1.5 px-4 sm:px-5 py-2 sm:py-2.5 premium-gradient rounded-xl font-medium text-sm sm:text-base text-white shadow-lg hover:shadow-xl">
+                        <Plus className="w-4 h-4 sm:w-5 sm:h-5" />記録を追加
                     </button>
                 </div>
             </header>
 
             {/* Tabs */}
-            <div className="flex gap-2 p-1 bg-card-solid rounded-xl w-fit border border-card-border overflow-x-auto max-w-full">
-                <button onClick={() => setActiveTab("transactions")} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium whitespace-nowrap ${activeTab === "transactions" ? "bg-accent-bg text-accent" : "text-t-secondary hover:text-t-primary hover:bg-accent-bg-hover"}`}>
-                    <Wallet className="w-4 h-4" />取引一覧
+            <div className="flex gap-1 sm:gap-2 p-1 bg-card-solid rounded-xl border border-card-border overflow-x-auto max-w-full" style={{ WebkitOverflowScrolling: 'touch' }}>
+                <button onClick={() => setActiveTab("transactions")} className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg font-medium text-xs sm:text-sm whitespace-nowrap ${activeTab === "transactions" ? "bg-accent-bg text-accent" : "text-t-secondary hover:text-t-primary hover:bg-accent-bg-hover"}`}>
+                    <Wallet className="w-3.5 h-3.5 sm:w-4 sm:h-4" />取引一覧
                 </button>
-                <button onClick={() => setActiveTab("lessons")} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium whitespace-nowrap ${activeTab === "lessons" ? "bg-accent-bg text-accent" : "text-t-secondary hover:text-t-primary hover:bg-accent-bg-hover"}`}>
-                    <Receipt className="w-4 h-4" />レッスン料管理
+                <button onClick={() => setActiveTab("lessons")} className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg font-medium text-xs sm:text-sm whitespace-nowrap ${activeTab === "lessons" ? "bg-accent-bg text-accent" : "text-t-secondary hover:text-t-primary hover:bg-accent-bg-hover"}`}>
+                    <Receipt className="w-3.5 h-3.5 sm:w-4 sm:h-4" />レッスン料
                 </button>
-                <button onClick={() => setActiveTab("chart")} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium whitespace-nowrap ${activeTab === "chart" ? "bg-accent-bg text-accent" : "text-t-secondary hover:text-t-primary hover:bg-accent-bg-hover"}`}>
-                    <BarChart3 className="w-4 h-4" />グラフ
+                <button onClick={() => setActiveTab("chart")} className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg font-medium text-xs sm:text-sm whitespace-nowrap ${activeTab === "chart" ? "bg-accent-bg text-accent" : "text-t-secondary hover:text-t-primary hover:bg-accent-bg-hover"}`}>
+                    <BarChart3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />グラフ
                 </button>
-                <button onClick={() => setActiveTab("invoice")} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium whitespace-nowrap ${activeTab === "invoice" ? "bg-accent-bg text-accent" : "text-t-secondary hover:text-t-primary hover:bg-accent-bg-hover"}`}>
-                    <FileDown className="w-4 h-4" />請求書
+                <button onClick={() => setActiveTab("invoice")} className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg font-medium text-xs sm:text-sm whitespace-nowrap ${activeTab === "invoice" ? "bg-accent-bg text-accent" : "text-t-secondary hover:text-t-primary hover:bg-accent-bg-hover"}`}>
+                    <FileDown className="w-3.5 h-3.5 sm:w-4 sm:h-4" />請求書
                 </button>
-                <button onClick={() => setActiveTab("annual")} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium whitespace-nowrap ${activeTab === "annual" ? "bg-accent-bg text-accent" : "text-t-secondary hover:text-t-primary hover:bg-accent-bg-hover"}`}>
-                    <FileDown className="w-4 h-4" />年間レポート
+                <button onClick={() => setActiveTab("annual")} className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg font-medium text-xs sm:text-sm whitespace-nowrap ${activeTab === "annual" ? "bg-accent-bg text-accent" : "text-t-secondary hover:text-t-primary hover:bg-accent-bg-hover"}`}>
+                    <FileDown className="w-3.5 h-3.5 sm:w-4 sm:h-4" />年間レポート
                 </button>
-            </div>
-
-            {/* Summary Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-                <div className="glass-card p-5">
-                    <div className="flex items-center gap-3 mb-3"><div className="p-2.5 bg-emerald-500/10 rounded-xl"><TrendingUp className="w-5 h-5 text-emerald-400" /></div><span className="text-sm text-slate-400">{formatMonthYear(selectedDate)}の収入</span></div>
-                    <p className="text-2xl font-bold text-emerald-400">¥{totalIncome.toLocaleString()}</p>
-                </div>
-                <div className="glass-card p-5">
-                    <div className="flex items-center gap-3 mb-3"><div className="p-2.5 bg-rose-500/10 rounded-xl"><TrendingDown className="w-5 h-5 text-rose-400" /></div><span className="text-sm text-slate-400">{formatMonthYear(selectedDate)}の支出</span></div>
-                    <p className="text-2xl font-bold text-rose-400">¥{totalExpense.toLocaleString()}</p>
-                </div>
-                <div className="glass-card p-5">
-                    <div className="flex items-center gap-3 mb-3"><div className="p-2.5 bg-violet-500/10 rounded-xl"><Wallet className="w-5 h-5 text-violet-400" /></div><span className="text-sm text-slate-400">収支</span></div>
-                    <p className={`text-2xl font-bold ${balance >= 0 ? "text-emerald-400" : "text-rose-400"}`}>¥{balance.toLocaleString()}</p>
-                </div>
             </div>
 
             {/* Tab Content */}
             {activeTab === "transactions" && (
                 <>
+                    {/* Summary Cards - only visible in transactions tab */}
+                    <div className="grid grid-cols-3 gap-2 sm:gap-4">
+                        <div className="glass-card p-3 sm:p-5">
+                            <div className="flex items-center gap-2 sm:gap-3 mb-1.5 sm:mb-3"><div className="p-1.5 sm:p-2.5 bg-emerald-500/10 rounded-lg sm:rounded-xl"><TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400" /></div><span className="text-[10px] sm:text-sm text-slate-400 hidden sm:inline">{formatMonthYear(selectedDate)}の収入</span><span className="text-[10px] text-slate-400 sm:hidden">収入</span></div>
+                            <p className="text-base sm:text-2xl font-bold text-emerald-400">¥{totalIncome.toLocaleString()}</p>
+                        </div>
+                        <div className="glass-card p-3 sm:p-5">
+                            <div className="flex items-center gap-2 sm:gap-3 mb-1.5 sm:mb-3"><div className="p-1.5 sm:p-2.5 bg-rose-500/10 rounded-lg sm:rounded-xl"><TrendingDown className="w-4 h-4 sm:w-5 sm:h-5 text-rose-400" /></div><span className="text-[10px] sm:text-sm text-slate-400 hidden sm:inline">{formatMonthYear(selectedDate)}の支出</span><span className="text-[10px] text-slate-400 sm:hidden">支出</span></div>
+                            <p className="text-base sm:text-2xl font-bold text-rose-400">¥{totalExpense.toLocaleString()}</p>
+                        </div>
+                        <div className="glass-card p-3 sm:p-5">
+                            <div className="flex items-center gap-2 sm:gap-3 mb-1.5 sm:mb-3"><div className="p-1.5 sm:p-2.5 bg-violet-500/10 rounded-lg sm:rounded-xl"><Wallet className="w-4 h-4 sm:w-5 sm:h-5 text-violet-400" /></div><span className="text-[10px] sm:text-sm text-slate-400">収支</span></div>
+                            <p className={`text-base sm:text-2xl font-bold ${balance >= 0 ? "text-emerald-400" : "text-rose-400"}`}>¥{balance.toLocaleString()}</p>
+                        </div>
+                    </div>
                     <div className="flex gap-2">
                         {(["all", "income", "expense"] as const).map((type) => (
                             <button key={type} onClick={() => setFilterType(type)} className={`px-4 py-2 rounded-lg font-medium text-sm ${filterType === type ? "bg-accent-bg text-accent" : "text-t-secondary hover:text-t-primary hover:bg-accent-bg-hover"}`}>
@@ -551,19 +550,19 @@ export default function FinanceView() {
                             <div className="p-8 text-center text-t-muted">この月の取引はありません</div>
                         ) : (
                             filteredTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((tx) => (
-                                <div key={tx.id} className="p-4 flex items-center gap-4 hover:bg-accent-bg-hover group transition-colors">
-                                    <div className={`p-2.5 rounded-xl ${tx.type === "income" ? "bg-emerald-100" : "bg-rose-100"}`}>
-                                        {tx.type === "income" ? <TrendingUp className="w-5 h-5 text-emerald-600" /> : <TrendingDown className="w-5 h-5 text-rose-600" />}
+                                <div key={tx.id} className="p-3 sm:p-4 flex items-center gap-2.5 sm:gap-4 hover:bg-accent-bg-hover group transition-colors">
+                                    <div className={`p-2 sm:p-2.5 rounded-lg sm:rounded-xl flex-shrink-0 ${tx.type === "income" ? "bg-emerald-100" : "bg-rose-100"}`}>
+                                        {tx.type === "income" ? <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600" /> : <TrendingDown className="w-4 h-4 sm:w-5 sm:h-5 text-rose-600" />}
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <p className="font-medium truncate text-t-primary">{tx.description}</p>
-                                        <p className="text-sm text-t-secondary">{tx.category}{tx.studentName && ` • ${tx.studentName}`}</p>
+                                        <p className="font-medium truncate text-t-primary text-sm sm:text-base">{tx.description}</p>
+                                        <p className="text-xs sm:text-sm text-t-secondary truncate">{tx.category}{tx.studentName && ` • ${tx.studentName}`}</p>
                                     </div>
-                                    <div className="text-right">
-                                        <p className={`font-semibold ${tx.type === "income" ? "text-emerald-600" : "text-rose-600"}`}>{tx.type === "income" ? "+" : "-"}¥{tx.amount.toLocaleString()}</p>
+                                    <div className="text-right flex-shrink-0">
+                                        <p className={`font-semibold text-sm sm:text-base ${tx.type === "income" ? "text-emerald-600" : "text-rose-600"}`}>{tx.type === "income" ? "+" : "-"}¥{tx.amount.toLocaleString()}</p>
                                         <p className="text-xs text-t-muted">{tx.date}</p>
                                     </div>
-                                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <div className="hidden sm:flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                         <button onClick={() => handleEditTransaction(tx)} className="p-2 hover:bg-card-border rounded-lg"><Pencil className="w-4 h-4 text-t-secondary" /></button>
                                         <button onClick={() => handleDeleteTransaction(tx.id)} className="p-2 hover:bg-rose-100 rounded-lg"><Trash2 className="w-4 h-4 text-rose-600" /></button>
                                     </div>
@@ -602,26 +601,26 @@ export default function FinanceView() {
                     </div>
 
                     {/* Filters */}
-                    <div className="glass-card p-4 flex flex-wrap gap-4 items-center justify-between">
-                        <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0">
-                            <div className="flex bg-gray-100 p-1 rounded-lg">
+                    <div className="glass-card p-3 sm:p-4">
+                        <div className="flex items-center gap-2 overflow-x-auto pb-1" style={{ WebkitOverflowScrolling: 'touch' }}>
+                            <div className="flex bg-gray-100 p-1 rounded-lg flex-shrink-0">
                                 {(["all", "monthly", "per-lesson"] as const).map(type => (
                                     <button
                                         key={type}
                                         onClick={() => setPaymentFilter(type)}
-                                        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${paymentFilter === type ? "bg-white text-accent shadow-sm" : "text-t-secondary hover:text-t-primary"}`}
+                                        className={`px-2.5 sm:px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium whitespace-nowrap transition-all ${paymentFilter === type ? "bg-white text-accent shadow-sm" : "text-t-secondary hover:text-t-primary"}`}
                                     >
                                         {type === "all" ? "すべて" : type === "monthly" ? "月謝制" : "都度払い"}
                                     </button>
                                 ))}
                             </div>
-                            <div className="w-px h-6 bg-gray-200 mx-2" />
-                            <div className="flex bg-gray-100 p-1 rounded-lg">
+                            <div className="w-px h-6 bg-gray-200 mx-1 flex-shrink-0" />
+                            <div className="flex bg-gray-100 p-1 rounded-lg flex-shrink-0">
                                 {(["all", "unpaid", "completed"] as const).map(status => (
                                     <button
                                         key={status}
                                         onClick={() => setStatusFilter(status)}
-                                        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${statusFilter === status ? "bg-white text-accent shadow-sm" : "text-t-secondary hover:text-t-primary"}`}
+                                        className={`px-2.5 sm:px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium whitespace-nowrap transition-all ${statusFilter === status ? "bg-white text-accent shadow-sm" : "text-t-secondary hover:text-t-primary"}`}
                                     >
                                         {status === "all" ? "すべて" : status === "unpaid" ? "未払いあり" : "完了"}
                                     </button>
@@ -849,31 +848,31 @@ export default function FinanceView() {
 
             {/* Annual Report Tab */}
             {activeTab === "annual" && annualSummary && (
-                <div className="glass-card p-6">
-                    <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-xl font-bold text-t-primary">年間収支レポート（確定申告用）</h3>
-                        <div className="flex gap-4">
-                            <select value={annualYear} onChange={(e) => setAnnualYear(parseInt(e.target.value))} className="px-4 py-2 bg-input-bg border border-input-border rounded-lg text-t-primary">
+                <div className="glass-card p-4 sm:p-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 sm:mb-6">
+                        <h3 className="text-base sm:text-xl font-bold text-t-primary">年間収支レポート（確定申告用）</h3>
+                        <div className="flex gap-2 sm:gap-4">
+                            <select value={annualYear} onChange={(e) => setAnnualYear(parseInt(e.target.value))} className="px-3 sm:px-4 py-2 bg-input-bg border border-input-border rounded-lg text-sm sm:text-base text-t-primary">
                                 {[2024, 2025, 2026].map(y => <option key={y} value={y}>{y}年</option>)}
                             </select>
-                            <button onClick={generateAnnualReportPDF} className="px-4 py-2 premium-gradient rounded-lg text-white font-medium shadow-lg">
+                            <button onClick={generateAnnualReportPDF} className="px-3 sm:px-4 py-2 premium-gradient rounded-lg text-white font-medium text-sm sm:text-base shadow-lg whitespace-nowrap">
                                 PDFダウンロード
                             </button>
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                        <div className="p-4 bg-emerald-100 rounded-xl border border-emerald-200">
-                            <p className="text-sm text-emerald-700 mb-1">総収入</p>
-                            <p className="text-2xl font-bold text-gray-700">¥{annualSummary.totalIncome.toLocaleString()}</p>
+                    <div className="grid grid-cols-3 gap-2 sm:gap-6 mb-6 sm:mb-8">
+                        <div className="p-2.5 sm:p-4 bg-emerald-100 rounded-lg sm:rounded-xl border border-emerald-200">
+                            <p className="text-[10px] sm:text-sm text-emerald-700 mb-0.5 sm:mb-1">総収入</p>
+                            <p className="text-sm sm:text-2xl font-bold text-gray-700">¥{annualSummary.totalIncome.toLocaleString()}</p>
                         </div>
-                        <div className="p-4 bg-rose-100 rounded-xl border border-rose-200">
-                            <p className="text-sm text-rose-700 mb-1">総支出</p>
-                            <p className="text-2xl font-bold text-gray-700">¥{annualSummary.totalExpense.toLocaleString()}</p>
+                        <div className="p-2.5 sm:p-4 bg-rose-100 rounded-lg sm:rounded-xl border border-rose-200">
+                            <p className="text-[10px] sm:text-sm text-rose-700 mb-0.5 sm:mb-1">総支出</p>
+                            <p className="text-sm sm:text-2xl font-bold text-gray-700">¥{annualSummary.totalExpense.toLocaleString()}</p>
                         </div>
-                        <div className="p-4 bg-blue-100 rounded-xl border border-blue-200">
-                            <p className="text-sm text-blue-700 mb-1">収支差額</p>
-                            <p className="text-2xl font-bold text-gray-700">¥{(annualSummary.totalIncome - annualSummary.totalExpense).toLocaleString()}</p>
+                        <div className="p-2.5 sm:p-4 bg-blue-100 rounded-lg sm:rounded-xl border border-blue-200">
+                            <p className="text-[10px] sm:text-sm text-blue-700 mb-0.5 sm:mb-1">収支差額</p>
+                            <p className="text-sm sm:text-2xl font-bold text-gray-700">¥{(annualSummary.totalIncome - annualSummary.totalExpense).toLocaleString()}</p>
                         </div>
                     </div>
 
