@@ -363,11 +363,17 @@ function lessonFormReducer(state: LessonFormState, action: LessonFormAction): Le
 
 
 
+import useSWR, { mutate } from "swr";
+
+// ... imports
+
 export default function ScheduleView({ initialStudentName }: { initialStudentName?: string } = {}) {
     const toast = useToast();
     const [mounted, setMounted] = useState(false);
-    const [events, setEvents] = useState<CalendarEvent[]>([]);
-    const [students, setStudents] = useState<Student[]>([]);
+    // Remove local state for events/students as they are now SWR driven
+    // const [events, setEvents] = useState<CalendarEvent[]>([]); 
+    // const [students, setStudents] = useState<Student[]>([]);
+
     const [currentDate, setCurrentDate] = useState(new Date());
     const [viewMode, setViewMode] = useState<ViewMode>("week");
     const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
@@ -388,19 +394,24 @@ export default function ScheduleView({ initialStudentName }: { initialStudentNam
         customDuration?: string;
     }>({});
 
-    const fetchEvents = async () => {
+    // SWR for Students
+    const { data: students = [] } = useSWR(
+        ['students'],
+        getStudents
+    );
+
+    // Calculate date range for main view
+    const getRange = () => {
         const year = currentDate.getFullYear();
         const month = currentDate.getMonth();
-
         let startDate: Date, endDate: Date;
 
         if (viewMode === "month" || viewMode === "summary") {
             startDate = new Date(year, month, 1);
             endDate = new Date(year, month + 1, 0, 23, 59, 59);
         } else {
-            // Week view - get current week
             const dayOfWeek = currentDate.getDay();
-            const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // Monday start
+            const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
             startDate = new Date(currentDate);
             startDate.setDate(currentDate.getDate() + diff);
             startDate.setHours(0, 0, 0, 0);
@@ -408,65 +419,51 @@ export default function ScheduleView({ initialStudentName }: { initialStudentNam
             endDate.setDate(startDate.getDate() + 6);
             endDate.setHours(23, 59, 59, 999);
         }
-
-        const fetchedEvents = await getLessons(startDate.toISOString(), endDate.toISOString());
-        setEvents(fetchedEvents);
+        return { start: startDate.toISOString(), end: endDate.toISOString() };
     };
+
+    const { start: startIso, end: endIso } = getRange();
+
+    // SWR for Lessons (Main View)
+    const { data: events = [], mutate: mutateEvents } = useSWR(
+        ['lessons', startIso, endIso],
+        () => getLessons(startIso, endIso)
+    );
+
+    // SWR for Mini Calendar (if needed separate, but usually main events cover it if in same month)
+    // Actually, mini calendar often shows adjacent months. 
+    // Optimization: If we just fetch a buffer around current view, we might not need separate fetch.
+    // For now, let's keep the hook but maybe duplicate data fetching is okay as it's cached by SWR if keys match?
+    // Keys won't match if ranges differ. 
+    // Let's implement a separate SWR for mini calendar to ensure dots appear.
+
+    const { start: miniStart, end: miniEnd } = (() => {
+        const year = miniCalendarDate.getFullYear();
+        const month = miniCalendarDate.getMonth();
+        const start = new Date(year, month, 1);
+        const end = new Date(year, month + 1, 0, 23, 59, 59);
+        return { start: start.toISOString(), end: end.toISOString() };
+    })();
+
+    const { data: miniEvents = [] } = useSWR(
+        ['lessons', miniStart, miniEnd],
+        () => getLessons(miniStart, miniEnd)
+    );
+
+    // Merge events for display (simple dedupe)
+    const allEvents = [...events, ...miniEvents].filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
+
 
     useEffect(() => {
         setMounted(true);
-        const loadData = async () => {
-            await fetchEvents();
-            const studentData = await getStudents();
-            setStudents(studentData);
-        };
-        loadData();
-    }, [currentDate, viewMode]);
+    }, []);
 
     // Sync mini calendar with current date
     useEffect(() => {
         setMiniCalendarDate(new Date(currentDate.getFullYear(), currentDate.getMonth(), 1));
     }, [currentDate]);
 
-    // Fetch events for mini calendar month (for event count dots)
-    useEffect(() => {
-        const fetchMiniCalendarEvents = async () => {
-            const year = miniCalendarDate.getFullYear();
-            const month = miniCalendarDate.getMonth();
-            const startDate = new Date(year, month, 1);
-            const endDate = new Date(year, month + 1, 0, 23, 59, 59);
-
-            // Only fetch if different from current view
-            if ((viewMode === "month" || viewMode === "summary") &&
-                currentDate.getFullYear() === year &&
-                currentDate.getMonth() === month) {
-                return; // Already have the data
-            }
-
-            if (viewMode === "week") {
-                const weekStart = getWeekStart(currentDate);
-                const weekEnd = getWeekEnd(currentDate);
-
-                // Check if mini calendar month overlaps with current week
-                if (startDate <= weekEnd && endDate >= weekStart) {
-                    return; // Already have the data
-                }
-            }
-
-            // Fetch mini calendar month events in background
-            const miniEvents = await getLessons(startDate.toISOString(), endDate.toISOString());
-            // Merge with existing events without duplicates
-            setEvents(prev => {
-                const existingIds = new Set(prev.map(e => e.id));
-                const newEvents = miniEvents.filter(e => !existingIds.has(e.id));
-                return [...prev, ...newEvents];
-            });
-        };
-
-        if (mounted) {
-            fetchMiniCalendarEvents();
-        }
-    }, [miniCalendarDate, mounted]);
+    // ... (handlePrev, handleNext, etc. remain same)
 
     const handlePrev = () => {
         if (viewMode === "month" || viewMode === "summary") {
@@ -500,11 +497,10 @@ export default function ScheduleView({ initialStudentName }: { initialStudentNam
         return `${monday.getMonth() + 1}/${monday.getDate()} 〜 ${sunday.getMonth() + 1}/${sunday.getDate()}`;
     };
 
-    // Validation function
+    // ... (Form validation remains same)
     const validateForm = (showToast: boolean = false): boolean => {
         const errors: typeof formErrors = {};
-
-        // Validate title based on mode
+        // ... (validation logic same)
         if (formState.titleMode === "student") {
             const form = document.querySelector("form");
             const titleElement = form?.querySelector('[name="title"]') as HTMLSelectElement | HTMLInputElement;
@@ -515,45 +511,23 @@ export default function ScheduleView({ initialStudentName }: { initialStudentNam
             errors.title = "タイトルを入力してください";
         }
 
-        // Validate date and time
-        if (!formState.lessonDate) {
-            errors.startTime = "レッスン日を入力してください";
-        }
-
-        if (!formState.startTime) {
-            errors.startTime = "開始時刻を入力してください";
-        }
-
-        if (!formState.endTime) {
-            errors.endTime = "終了時刻を入力してください";
-        } else if (formState.lessonDate && formState.startTime && formState.endTime) {
+        if (!formState.lessonDate) errors.startTime = "レッスン日を入力してください";
+        if (!formState.startTime) errors.startTime = "開始時刻を入力してください";
+        if (!formState.endTime) errors.endTime = "終了時刻を入力してください";
+        else if (formState.lessonDate && formState.startTime && formState.endTime) {
             const startDateTime = new Date(`${formState.lessonDate}T${formState.startTime}`);
             const endDateTime = new Date(`${formState.lessonDate}T${formState.endTime}`);
-
-            if (endDateTime <= startDateTime) {
-                errors.endTime = "終了時刻は開始時刻より後に設定してください";
-            }
+            if (endDateTime <= startDateTime) errors.endTime = "終了時刻は開始時刻より後に設定してください";
         }
 
-        // Validate custom duration
         if (formState.showCustomDuration) {
-            if (!formState.customDuration) {
-                errors.customDuration = "カスタム時間を入力してください";
-            } else if (
-                typeof formState.customDuration === "number" &&
-                (formState.customDuration < 1 || formState.customDuration > 300)
-            ) {
+            if (!formState.customDuration) errors.customDuration = "カスタム時間を入力してください";
+            else if (typeof formState.customDuration === "number" && (formState.customDuration < 1 || formState.customDuration > 300))
                 errors.customDuration = "カスタム時間は1〜300分の間で入力してください";
-            }
         }
 
         setFormErrors(errors);
-
-        // Show toast for validation errors if requested
-        if (showToast && Object.keys(errors).length > 0) {
-            toast.error("入力内容に誤りがあります");
-        }
-
+        if (showToast && Object.keys(errors).length > 0) toast.error("入力内容に誤りがあります");
         return Object.keys(errors).length === 0;
     };
 
@@ -588,23 +562,24 @@ export default function ScheduleView({ initialStudentName }: { initialStudentNam
             description: formData.get("description") as string,
         };
 
-        // Optimistic update: add event to UI immediately
-        let optimisticEvent: CalendarEvent | null = null;
-        const previousEvents = [...events];
+        // Optimistic update
+        const newEvent: CalendarEvent = {
+            id: editingEvent ? editingEvent.id : `temp-${Date.now()}`,
+            ...eventData
+        };
 
-        if (!editingEvent) {
-            // Creating new event - add temporary event with placeholder ID
-            optimisticEvent = {
-                id: `temp-${Date.now()}`,
-                ...eventData,
-            };
-            setEvents([...events, optimisticEvent]);
-        } else {
-            // Updating existing event - update in place
-            setEvents(events.map(e =>
-                e.id === editingEvent.id ? { ...e, ...eventData } : e
-            ));
-        }
+        const updatedEvents = editingEvent
+            ? events.map(e => e.id === editingEvent.id ? { ...e, ...eventData } : e)
+            : [...events, newEvent];
+
+        // Mutate local cache immediately
+        mutateEvents(updatedEvents, false);
+
+        setIsAddModalOpen(false);
+        setEditingEvent(null);
+        setSelectedEvent(null);
+        setFormErrors({});
+        dispatch({ type: "RESET_FORM" });
 
         try {
             let result;
@@ -617,32 +592,20 @@ export default function ScheduleView({ initialStudentName }: { initialStudentNam
             if (result.success) {
                 toast.success(editingEvent ? "レッスンを更新しました" : "レッスンを作成しました");
 
-                // Save last used duration to localStorage for smart defaults
                 if (typeof window !== "undefined") {
                     localStorage.setItem("lastLessonDuration", formState.lessonDuration.toString());
                 }
 
-                // Fetch fresh data from server to get real IDs and any server-side changes
-                await fetchEvents();
-
-                setIsAddModalOpen(false);
-                setEditingEvent(null);
-                setSelectedEvent(null);
-                setFormErrors({});
-                dispatch({ type: "RESET_FORM" });
+                // Trigger revalidation to get real ID from server
+                mutateEvents();
             } else {
                 throw new Error(result.error as string);
             }
         } catch (error: any) {
             console.error("Failed to save lesson:", error);
-
-            // Rollback optimistic update on error
-            setEvents(previousEvents);
-
-            const errorMessage = error?.message || (editingEvent
-                ? "レッスンの更新に失敗しました"
-                : "レッスンの作成に失敗しました");
+            const errorMessage = error?.message || (editingEvent ? "レッスンの更新に失敗しました" : "レッスンの作成に失敗しました");
             toast.error(errorMessage);
+            mutateEvents(); // Rollback
         } finally {
             dispatch({ type: "SET_SAVING", saving: false });
         }
@@ -651,13 +614,17 @@ export default function ScheduleView({ initialStudentName }: { initialStudentNam
     const handleDeleteEvent = async (eventId: string) => {
         if (!confirm("このレッスンを削除しますか？")) return;
 
+        // Optimistic update
+        const updatedEvents = events.filter(e => e.id !== eventId);
+        mutateEvents(updatedEvents, false);
+        setSelectedEvent(null);
+
         try {
             const result = await deleteLesson(eventId);
 
             if (result.success) {
                 toast.success("レッスンを削除しました");
-                await fetchEvents();
-                setSelectedEvent(null);
+                mutateEvents(); // Revalidate
             } else {
                 throw new Error(result.error as string);
             }
@@ -665,6 +632,7 @@ export default function ScheduleView({ initialStudentName }: { initialStudentNam
             console.error("Failed to delete lesson:", error);
             const errorMessage = error?.message || "レッスンの削除に失敗しました";
             toast.error(errorMessage);
+            mutateEvents(); // Rollback
         }
     };
 
@@ -759,7 +727,7 @@ export default function ScheduleView({ initialStudentName }: { initialStudentNam
     };
 
     const getEventsForDay = (date: Date) => {
-        return events.filter(e => {
+        return allEvents.filter(e => {
             const eventDate = new Date(e.start);
             return eventDate.toDateString() === date.toDateString();
         }).sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());

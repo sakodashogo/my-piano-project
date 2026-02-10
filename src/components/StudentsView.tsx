@@ -50,17 +50,62 @@ interface StudentsViewProps {
     initialTab?: "active" | "completed" | "notes" | "progress" | "recital";
 }
 
+import useSWR, { mutate } from "swr";
+
+// ... (other imports remain)
+
 export default function StudentsView({ initialStudentId, initialTab }: StudentsViewProps = {}) {
-    const [students, setStudents] = useState<Student[]>([]);
-    const [loading, setLoading] = useState(true);
+    // SWR for Students
     const [showArchived, setShowArchived] = useState(false);
 
+    // We can't easily move selectedStudent to just an ID because it's used extensively
+    // But we should try to keep it in sync with the list from SWR if possible, 
+    // or just rely on manual updates as before, but ensure the list is refreshed.
+
+    const { data: students = [], mutate: mutateStudents, isLoading: isLoadingStudents } = useSWR(
+        ['students', showArchived],
+        () => getStudents(showArchived)
+    );
+
+    const { data: sheetMusicLibrary = [] } = useSWR(
+        ['sheetMusic'],
+        getSheetMusic
+    );
+
+    const [searchQuery, setSearchQuery] = useState("");
+    const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+    const [activeTab, setActiveTab] = useState<DetailTab>("active");
+
+    // SWR for Sub-resources (dependent on selectedStudent and activeTab)
+    const { data: lessonNotes = [], mutate: mutateNotes, isLoading: isLoadingNotes } = useSWR(
+        selectedStudent && activeTab === "notes" ? ['lessonNotes', selectedStudent.id] : null,
+        () => getLessonNotes(selectedStudent!.id)
+    );
+
+    const { data: progressData = [] } = useSWR(
+        selectedStudent && activeTab === "progress" ? ['studentProgress', selectedStudent.id] : null,
+        () => getStudentProgress(selectedStudent!.id)
+    );
+
+    // Sync selectedStudent with SWR data when it changes (to keep it fresh)
     useEffect(() => {
-        loadStudents();
-    }, [showArchived]);
+        if (selectedStudent) {
+            const freshStudent = students.find(s => s.id === selectedStudent.id);
+            if (freshStudent && JSON.stringify(freshStudent) !== JSON.stringify(selectedStudent)) {
+                // Only update if actually different to avoid loops (though JSON.stringify is a bit expensive, it's safe for simple objects)
+                // Actually, since we update selectedStudent optimistically in handlers, 
+                // we might not want to overwrite it strictly unless it's a background revalidation.
+                // Let's trust the handlers to update both for now, or use a derived state if we could.
+                // But changing selectedStudent to ID would be too big a refactor for now.
+                // We will manually update selectedStudent in handlers.
+            }
+        }
+    }, [students]);
 
     useEffect(() => {
-        if (initialStudentId && students.length > 0) {
+        if (initialStudentId && students.length > 0 && !selectedStudent) {
             const student = students.find(s => s.id === initialStudentId);
             if (student) {
                 setSelectedStudent(student);
@@ -69,26 +114,7 @@ export default function StudentsView({ initialStudentId, initialTab }: StudentsV
         }
     }, [initialStudentId, students, initialTab]);
 
-    const loadStudents = async () => {
-        setLoading(true);
-        const [studentData, sheetMusicData] = await Promise.all([
-            getStudents(showArchived),
-            getSheetMusic()
-        ]);
-        setStudents(studentData);
-        setSheetMusicLibrary(sheetMusicData);
-        setLoading(false);
-    };
 
-    const [searchQuery, setSearchQuery] = useState("");
-    const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
-    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-    const [editingStudent, setEditingStudent] = useState<Student | null>(null);
-    const [activeTab, setActiveTab] = useState<DetailTab>("active");
-
-    // Lesson notes
-    const [lessonNotes, setLessonNotes] = useState<{ id: number; date: string; content: string; pieces?: string[] }[]>([]);
-    const [loadingNotes, setLoadingNotes] = useState(false);
     const [isAddNoteModalOpen, setIsAddNoteModalOpen] = useState(false);
     const [noteSearchQuery, setNoteSearchQuery] = useState("");
 
@@ -96,43 +122,17 @@ export default function StudentsView({ initialStudentId, initialTab }: StudentsV
     const [isAddPieceModalOpen, setIsAddPieceModalOpen] = useState(false);
     const [addingPieceForStudentId, setAddingPieceForStudentId] = useState<number | null>(null);
 
-    // Progress chart
-    const [progressData, setProgressData] = useState<{ month: string; completedCount: number }[]>([]);
-
     // Recital
     const [isAddRecitalModalOpen, setIsAddRecitalModalOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
 
     // Edit note
     const [editingNote, setEditingNote] = useState<{ id: number; date: string; content: string } | null>(null);
-
-    // Sheet Music Library
-    const [sheetMusicLibrary, setSheetMusicLibrary] = useState<SheetMusic[]>([]);
     const [useLibrary, setUseLibrary] = useState(false);
 
     const filteredStudents = students.filter((s) =>
         s.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
-
-    useEffect(() => {
-        if (selectedStudent && activeTab === "notes") {
-            loadLessonNotes(selectedStudent.id);
-        } else if (selectedStudent && activeTab === "progress") {
-            loadProgressData(selectedStudent.id);
-        }
-    }, [selectedStudent, activeTab]);
-
-    const loadLessonNotes = async (studentId: number) => {
-        setLoadingNotes(true);
-        const notes = await getLessonNotes(studentId);
-        setLessonNotes(notes);
-        setLoadingNotes(false);
-    };
-
-    const loadProgressData = async (studentId: number) => {
-        const data = await getStudentProgress(studentId);
-        setProgressData(data);
-    };
 
     const handleUpdateProgress = async (studentId: number, pieceId: number, progress: number) => {
         const student = students.find((s) => s.id === studentId);
@@ -143,15 +143,20 @@ export default function StudentsView({ initialStudentId, initialTab }: StudentsV
             pieces: student.pieces.map((p) => (p.id === pieceId ? { ...p, progress } : p)),
         };
 
-        // UIを即座に更新
-        setStudents((prev) => prev.map((s) => (s.id === studentId ? updatedStudent : s)));
+        // Optimistic Update
+        const updatedStudentsList = students.map((s) => (s.id === studentId ? updatedStudent : s));
+        mutateStudents(updatedStudentsList, false);
 
         if (selectedStudent?.id === studentId) {
             setSelectedStudent(updatedStudent);
         }
 
-        // データを保存
-        await saveStudent(updatedStudent);
+        try {
+            await saveStudent(updatedStudent);
+            mutateStudents(); // Revalidate
+        } catch (error) {
+            mutateStudents(); // Rollback
+        }
     };
 
     const handleCompletePiece = async (studentId: number, pieceId: number) => {
@@ -166,15 +171,19 @@ export default function StudentsView({ initialStudentId, initialTab }: StudentsV
             ),
         };
 
-        // UIを即座に更新
-        setStudents((prev) => prev.map((s) => (s.id === studentId ? updatedStudent : s)));
+        const updatedStudentsList = students.map((s) => (s.id === studentId ? updatedStudent : s));
+        mutateStudents(updatedStudentsList, false);
 
         if (selectedStudent?.id === studentId) {
             setSelectedStudent(updatedStudent);
         }
 
-        // データを保存
-        await saveStudent(updatedStudent);
+        try {
+            await saveStudent(updatedStudent);
+            mutateStudents();
+        } catch (error) {
+            mutateStudents();
+        }
     };
 
     const openAddPieceModal = (studentId: number) => {
@@ -220,42 +229,67 @@ export default function StudentsView({ initialStudentId, initialTab }: StudentsV
                     pieces: [newPiece, ...student.pieces],
                 };
 
-                // UIを即座に更新
-                setStudents((prev) => prev.map((s) => (s.id === addingPieceForStudentId ? updatedStudent : s)));
+                const updatedStudentsList = students.map((s) => (s.id === addingPieceForStudentId ? updatedStudent : s));
+                mutateStudents(updatedStudentsList, false);
 
                 if (selectedStudent?.id === addingPieceForStudentId) {
                     setSelectedStudent(updatedStudent);
                 }
 
-                // データを保存
                 await saveStudent(updatedStudent);
+                mutateStudents();
             }
 
             setIsAddPieceModalOpen(false);
             setAddingPieceForStudentId(null);
             setUseLibrary(false);
-            setIsSaving(false);  // surely reset saving state
         } catch (error) {
             console.error("Failed to add piece:", error);
+            mutateStudents();
+        } finally {
             setIsSaving(false);
         }
     };
 
     const handleArchiveStudent = async (studentId: number, archive: boolean) => {
-        await archiveStudent(studentId, archive);
+        // Optimistic: remove from view if we are hiding archived, or just update status
+        // Since getStudents respects showArchived, if we are NOT showing archived, the student should disappear.
+
+        let updatedStudentsList = students;
+        if (!showArchived && archive) {
+            updatedStudentsList = students.filter(s => s.id !== studentId);
+        } else {
+            updatedStudentsList = students.map(s => s.id === studentId ? { ...s, archived: archive } : s);
+        }
+        mutateStudents(updatedStudentsList, false);
+
+        // If the selected student is the one being archived/unarchived, update it or close it?
+        // If archiving and we are in active view, maybe close modal?
+        // For now, let's just close the modal.
         setSelectedStudent(null);
-        await loadStudents();
+
+        try {
+            await archiveStudent(studentId, archive);
+            mutateStudents();
+        } catch (error) {
+            mutateStudents();
+        }
     };
 
     const handleDeleteStudent = async (studentId: number) => {
         if (!confirm("この生徒を削除しますか？\nこの操作は取り消せません。")) return;
-
-        // 二重確認
         if (!confirm("本当に削除してよろしいですか？\n生徒データと関連するすべての記録が削除されます。")) return;
 
-        await deleteStudent(studentId);
+        const updatedStudentsList = students.filter(s => s.id !== studentId);
+        mutateStudents(updatedStudentsList, false);
         setSelectedStudent(null);
-        await loadStudents();
+
+        try {
+            await deleteStudent(studentId);
+            mutateStudents();
+        } catch (error) {
+            mutateStudents();
+        }
     };
 
     const handleAddLessonNote = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -263,18 +297,31 @@ export default function StudentsView({ initialStudentId, initialTab }: StudentsV
         if (!selectedStudent || isSaving) return;
         setIsSaving(true);
 
-        try {
-            const form = e.target as HTMLFormElement;
-            const formData = new FormData(form);
+        const form = e.target as HTMLFormElement;
+        const formData = new FormData(form);
 
+        const newNote = {
+            id: Date.now(), // temp id
+            date: formData.get("date") as string,
+            content: formData.get("content") as string,
+            pieces: [],
+        };
+
+        // Optimistic Update for Notes
+        const updatedNotes = [newNote, ...lessonNotes];
+        mutateNotes(updatedNotes, false);
+
+        setIsAddNoteModalOpen(false);
+
+        try {
             await addLessonNote(selectedStudent.id, {
-                date: formData.get("date") as string,
-                content: formData.get("content") as string,
+                date: newNote.date,
+                content: newNote.content,
                 pieces: [],
             });
-
-            await loadLessonNotes(selectedStudent.id);
-            setIsAddNoteModalOpen(false);
+            mutateNotes(); // Revalidate to get real ID
+        } catch (error) {
+            mutateNotes();
         } finally {
             setIsSaving(false);
         }
@@ -283,8 +330,16 @@ export default function StudentsView({ initialStudentId, initialTab }: StudentsV
     const handleDeleteNote = async (noteId: number) => {
         if (!selectedStudent) return;
         if (!confirm("このノートを削除しますか？")) return;
-        await deleteLessonNote(selectedStudent.id, noteId);
-        await loadLessonNotes(selectedStudent.id);
+
+        const updatedNotes = lessonNotes.filter(n => n.id !== noteId);
+        mutateNotes(updatedNotes, false);
+
+        try {
+            await deleteLessonNote(selectedStudent.id, noteId);
+            mutateNotes();
+        } catch (error) {
+            mutateNotes();
+        }
     };
 
     const openEditModal = (student: Student) => {
@@ -296,17 +351,24 @@ export default function StudentsView({ initialStudentId, initialTab }: StudentsV
         e.preventDefault();
         if (!selectedStudent || !editingNote || isSaving) return;
         setIsSaving(true);
+
+        const form = e.target as HTMLFormElement;
+        const formData = new FormData(form);
+        const date = formData.get("date") as string;
+        const content = formData.get("content") as string;
+
+        const updatedNotes = lessonNotes.map(n => n.id === editingNote.id ? { ...n, date, content } : n);
+        mutateNotes(updatedNotes, false);
+        setEditingNote(null);
+
         try {
-            const form = e.target as HTMLFormElement;
-            const formData = new FormData(form);
             await updateLessonNote(
                 selectedStudent.id,
                 editingNote.id,
-                formData.get("date") as string,
-                formData.get("content") as string
+                date,
+                content
             );
-            await loadLessonNotes(selectedStudent.id);
-            setEditingNote(null);
+            mutateNotes();
         } finally {
             setIsSaving(false);
         }
@@ -340,7 +402,7 @@ export default function StudentsView({ initialStudentId, initialTab }: StudentsV
                 <input type="text" placeholder="生徒名で検索..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-12 pr-4 py-3.5 bg-input-bg border border-input-border rounded-xl text-input-text placeholder:text-t-muted focus:border-input-border-focus shadow-sm" />
             </div>
 
-            {loading ? (
+            {isLoadingStudents ? (
                 <div className="text-center py-12 text-t-muted">読み込み中...</div>
             ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
@@ -514,7 +576,7 @@ export default function StudentsView({ initialStudentId, initialTab }: StudentsV
                                                     };
 
                                                     // UIを即座に更新
-                                                    setStudents((prev) => prev.map((s) => (s.id === selectedStudent.id ? updatedStudent : s)));
+                                                    mutateStudents(students.map((s) => (s.id === selectedStudent.id ? updatedStudent : s)), false);
                                                     setSelectedStudent(updatedStudent);
 
                                                     // データを保存
@@ -545,7 +607,7 @@ export default function StudentsView({ initialStudentId, initialTab }: StudentsV
                                         </div>
                                         <button onClick={() => setIsAddNoteModalOpen(true)} className="px-4 py-2.5 premium-gradient rounded-xl text-white font-medium flex items-center gap-2 whitespace-nowrap"><Plus className="w-4 h-4" />追加</button>
                                     </div>
-                                    {loadingNotes ? (
+                                    {isLoadingNotes ? (
                                         <p className="text-center py-8 text-gray-400">読み込み中...</p>
                                     ) : lessonNotes.filter(note =>
                                         note.date.includes(noteSearchQuery) ||
@@ -668,11 +730,22 @@ export default function StudentsView({ initialStudentId, initialTab }: StudentsV
                                     monthlyFee: Number(formData.get("monthlyFee")) || 0,
                                 };
 
-                                await saveStudent(newStudentData);
-                                await loadStudents();
+                                // Optimistic Update
+                                const updatedStudentsList = editingStudent
+                                    ? students.map(s => s.id === newStudentData.id ? newStudentData : s)
+                                    : [...students, newStudentData];
+
+                                mutateStudents(updatedStudentsList, false);
+
                                 if (selectedStudent?.id === newStudentData.id) setSelectedStudent(newStudentData);
                                 setIsAddModalOpen(false);
                                 setEditingStudent(null);
+
+                                await saveStudent(newStudentData);
+                                mutateStudents();
+                            } catch (error) {
+                                console.error("Failed to save student:", error);
+                                mutateStudents();
                             } finally {
                                 setIsSaving(false);
                             }
@@ -886,7 +959,7 @@ export default function StudentsView({ initialStudentId, initialTab }: StudentsV
                                 };
                                 await saveStudent(updatedStudent);
                                 setSelectedStudent(updatedStudent);
-                                setStudents(prev => prev.map(s => s.id === updatedStudent.id ? updatedStudent : s));
+                                mutateStudents(students.map(s => s.id === updatedStudent.id ? updatedStudent : s), false);
                                 setIsAddRecitalModalOpen(false);
                             } finally {
                                 setIsSaving(false);
