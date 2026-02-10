@@ -22,6 +22,10 @@ export default function ScheduleView() {
     const [startTime, setStartTime] = useState("");
     const [endTime, setEndTime] = useState("");
     const [miniCalendarDate, setMiniCalendarDate] = useState(new Date());
+    const [customDuration, setCustomDuration] = useState<number | "">("");
+    const [showCustomDuration, setShowCustomDuration] = useState(false);
+    const [titleMode, setTitleMode] = useState<"student" | "trial" | "other">("student");
+    const [customTitle, setCustomTitle] = useState("");
 
     const fetchEvents = async () => {
         const year = currentDate.getFullYear();
@@ -173,6 +177,33 @@ export default function ScheduleView() {
         setEditingEvent(event);
         setStartTime(formatDateForInput(event.start));
         setEndTime(formatDateForInput(event.end));
+
+        // Determine title mode from existing event
+        if (event.title === "体験レッスン") {
+            setTitleMode("trial");
+            setCustomTitle("");
+        } else if (students.some(s => s.name === event.title)) {
+            setTitleMode("student");
+            setCustomTitle("");
+        } else {
+            setTitleMode("other");
+            setCustomTitle(event.title);
+        }
+
+        // Determine duration mode from existing event
+        const eventDuration = Math.round((new Date(event.end).getTime() - new Date(event.start).getTime()) / 60000);
+        const standardDurations = [30, 45, 60, 90];
+
+        if (standardDurations.includes(eventDuration)) {
+            setShowCustomDuration(false);
+            setCustomDuration("");
+            setLessonDuration(eventDuration);
+        } else {
+            setShowCustomDuration(true);
+            setCustomDuration(eventDuration);
+            setLessonDuration(eventDuration);
+        }
+
         setIsAddModalOpen(true);
         setSelectedEvent(null);
     };
@@ -187,23 +218,62 @@ export default function ScheduleView() {
         }
     };
 
-    const handleDurationChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const newDuration = parseInt(e.target.value);
-        setLessonDuration(newDuration);
-        if (startTime) {
-            const startDate = new Date(startTime);
-            const endDate = new Date(startDate.getTime() + newDuration * 60000);
-            setEndTime(endDate.toISOString().slice(0, 16));
+    const handleDurationSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const value = e.target.value;
+
+        if (value === "custom") {
+            setShowCustomDuration(true);
+            // Don't update lessonDuration yet, wait for custom input
+        } else {
+            setShowCustomDuration(false);
+            const newDuration = parseInt(value);
+            setLessonDuration(newDuration);
+            setCustomDuration(""); // Clear custom input
+
+            // Auto-calculate end time
+            if (startTime) {
+                const startDate = new Date(startTime);
+                const endDate = new Date(startDate.getTime() + newDuration * 60000);
+                setEndTime(endDate.toISOString().slice(0, 16));
+            }
+        }
+    };
+
+    const handleCustomDurationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value;
+        const numValue = value === "" ? "" : parseInt(value);
+        setCustomDuration(numValue);
+
+        // If valid number, update lessonDuration and auto-calculate end time
+        if (typeof numValue === "number" && numValue > 0) {
+            setLessonDuration(numValue);
+
+            if (startTime) {
+                const startDate = new Date(startTime);
+                const endDate = new Date(startDate.getTime() + numValue * 60000);
+                setEndTime(endDate.toISOString().slice(0, 16));
+            }
         }
     };
 
     const openAddModal = () => {
         setEditingEvent(null);
+
+        // Reset title mode
+        setTitleMode("student");
+        setCustomTitle("");
+
+        // Reset duration mode
+        setShowCustomDuration(false);
+        setCustomDuration("");
+
+        // Set default times
         setStartTime(formatDateForInput());
         const now = new Date();
         now.setMinutes(0);
         const endDate = new Date(now.getTime() + lessonDuration * 60000);
         setEndTime(endDate.toISOString().slice(0, 16));
+
         setIsAddModalOpen(true);
     };
 
@@ -600,20 +670,115 @@ export default function ScheduleView() {
                             <h3 className="text-2xl font-bold text-gradient mb-6">{editingEvent ? "レッスンを編集" : "新規レッスン"}</h3>
                             <form onSubmit={handleSaveEvent} className="space-y-5">
                                 <div>
-                                    <label className="block text-sm font-medium text-t-secondary mb-2">タイトル（生徒名など） <span className="text-danger">*</span></label>
-                                    <input name="title" list="student-names" required defaultValue={editingEvent?.title} className="w-full px-4 py-3 bg-input-bg border border-input-border rounded-xl text-input-text focus:border-input-border-focus" placeholder="例: 山田花子" />
-                                    <datalist id="student-names">
-                                        {students.map(s => <option key={s.id} value={s.name} />)}
-                                    </datalist>
+                                    <label className="block text-sm font-medium text-t-secondary mb-2">レッスン種別 <span className="text-danger">*</span></label>
+
+                                    {/* Three-button toggle group */}
+                                    <div className="flex gap-2 mb-3 p-1 bg-card-solid rounded-xl border border-card-border">
+                                        <button
+                                            type="button"
+                                            onClick={() => setTitleMode("student")}
+                                            className={`flex-1 py-2.5 rounded-lg font-medium transition-colors ${titleMode === "student"
+                                                    ? "bg-accent-bg text-accent"
+                                                    : "text-t-secondary hover:bg-accent-bg-hover"
+                                                }`}
+                                        >
+                                            生徒名
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setTitleMode("trial")}
+                                            className={`flex-1 py-2.5 rounded-lg font-medium transition-colors ${titleMode === "trial"
+                                                    ? "bg-accent-bg text-accent"
+                                                    : "text-t-secondary hover:bg-accent-bg-hover"
+                                                }`}
+                                        >
+                                            体験レッスン
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setTitleMode("other")}
+                                            className={`flex-1 py-2.5 rounded-lg font-medium transition-colors ${titleMode === "other"
+                                                    ? "bg-accent-bg text-accent"
+                                                    : "text-t-secondary hover:bg-accent-bg-hover"
+                                                }`}
+                                        >
+                                            その他
+                                        </button>
+                                    </div>
+
+                                    {/* Conditional input based on titleMode */}
+                                    {titleMode === "student" && (
+                                        <div>
+                                            <label className="block text-sm font-medium text-t-secondary mb-2">生徒名 <span className="text-danger">*</span></label>
+                                            <input
+                                                name="title"
+                                                list="student-names"
+                                                required
+                                                defaultValue={editingEvent?.title}
+                                                className="w-full px-4 py-3 bg-input-bg border border-input-border rounded-xl text-input-text focus:border-input-border-focus"
+                                                placeholder="例: 山田花子"
+                                            />
+                                            <datalist id="student-names">
+                                                {students.map(s => <option key={s.id} value={s.name} />)}
+                                            </datalist>
+                                        </div>
+                                    )}
+
+                                    {titleMode === "trial" && (
+                                        <input
+                                            type="hidden"
+                                            name="title"
+                                            value="体験レッスン"
+                                        />
+                                    )}
+
+                                    {titleMode === "other" && (
+                                        <div>
+                                            <label className="block text-sm font-medium text-t-secondary mb-2">タイトル <span className="text-danger">*</span></label>
+                                            <input
+                                                name="title"
+                                                required
+                                                value={customTitle}
+                                                onChange={(e) => setCustomTitle(e.target.value)}
+                                                className="w-full px-4 py-3 bg-input-bg border border-input-border rounded-xl text-input-text focus:border-input-border-focus"
+                                                placeholder="例: 保護者面談、発表会準備など"
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-t-secondary mb-2">レッスン時間</label>
-                                    <select value={lessonDuration} onChange={handleDurationChange} className="w-full px-4 py-3 bg-input-bg border border-input-border rounded-xl text-input-text focus:border-input-border-focus">
+                                    <select
+                                        value={showCustomDuration ? "custom" : lessonDuration}
+                                        onChange={handleDurationSelectChange}
+                                        className="w-full px-4 py-3 bg-input-bg border border-input-border rounded-xl text-input-text focus:border-input-border-focus"
+                                    >
                                         <option value={30}>30分</option>
                                         <option value={45}>45分</option>
                                         <option value={60}>60分</option>
                                         <option value={90}>90分</option>
+                                        <option value="custom">その他（カスタム）</option>
                                     </select>
+
+                                    {/* Conditional custom duration input */}
+                                    {showCustomDuration && (
+                                        <div className="mt-3">
+                                            <label className="block text-sm font-medium text-t-secondary mb-2">
+                                                カスタム時間（分） <span className="text-danger">*</span>
+                                            </label>
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                max="300"
+                                                required={showCustomDuration}
+                                                value={customDuration}
+                                                onChange={handleCustomDurationChange}
+                                                className="w-full px-4 py-3 bg-input-bg border border-input-border rounded-xl text-input-text focus:border-input-border-focus"
+                                                placeholder="例: 75"
+                                            />
+                                            <p className="text-xs text-t-muted mt-1">1〜300分の間で入力してください</p>
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
