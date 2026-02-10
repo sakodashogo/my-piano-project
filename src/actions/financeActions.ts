@@ -255,6 +255,38 @@ export async function getTuitionPayments(year: number, month: number): Promise<T
     }
 }
 
+// ===== Auto Transaction Helpers =====
+
+const AUTO_CATEGORY = "[自動] レッスン料";
+
+async function createAutoTransaction(description: string, amount: number, date: string, studentName: string, studentId: number) {
+    const transaction: Transaction = {
+        id: Date.now() + Math.floor(Math.random() * 1000),
+        type: "income",
+        category: AUTO_CATEGORY,
+        description,
+        amount,
+        date,
+        studentName,
+        studentId,
+    };
+    await addTransaction(transaction);
+}
+
+async function removeAutoTransaction(description: string) {
+    try {
+        const transactions = await getTransactions();
+        const autoTx = transactions.find(
+            (t) => t.category === AUTO_CATEGORY && t.description === description
+        );
+        if (autoTx) {
+            await deleteTransaction(autoTx.id);
+        }
+    } catch (error) {
+        console.error("Error removing auto transaction:", error);
+    }
+}
+
 // Save tuition payment status
 export async function saveTuitionPayment(payment: TuitionPayment) {
     try {
@@ -273,6 +305,9 @@ export async function saveTuitionPayment(payment: TuitionPayment) {
                 Number(row[2]) === payment.year &&
                 Number(row[3]) === payment.month
         );
+
+        // Check previous paid status
+        const wasPaid = existingIndex !== -1 && (rows[existingIndex][4] === "TRUE" || rows[existingIndex][4] === "true");
 
         const rowData = [
             payment.studentId,
@@ -307,6 +342,18 @@ export async function saveTuitionPayment(payment: TuitionPayment) {
                 },
             });
         }
+
+        // Auto-transaction: create or remove
+        const txDescription = `${payment.studentName} 月謝 ${payment.year}/${payment.month}月`;
+        if (payment.paid && !wasPaid) {
+            // Newly paid → create income transaction
+            const txDate = payment.paidDate || new Date().toISOString().split("T")[0];
+            await createAutoTransaction(txDescription, payment.amount, txDate, payment.studentName, payment.studentId);
+        } else if (!payment.paid && wasPaid) {
+            // Unpaid → remove auto transaction
+            await removeAutoTransaction(txDescription);
+        }
+
         return { success: true };
     } catch (error) {
         console.error("Error saving tuition payment:", error);
@@ -363,6 +410,9 @@ export async function saveLessonPayment(payment: LessonPayment) {
         const rows = existingPayments.data.values || [];
         const existingIndex = rows.findIndex((row) => Number(row[0]) === payment.id);
 
+        // Check previous paid status
+        const wasPaid = existingIndex !== -1 && (rows[existingIndex][5] === "TRUE" || rows[existingIndex][5] === "true");
+
         const rowData = [
             payment.id,
             payment.studentId,
@@ -396,6 +446,18 @@ export async function saveLessonPayment(payment: LessonPayment) {
                 },
             });
         }
+
+        // Auto-transaction: create or remove
+        const txDescription = `${payment.studentName} レッスン料 ${payment.lessonDate}`;
+        if (payment.paid && !wasPaid) {
+            // Newly paid → create income transaction
+            const txDate = payment.paidDate || payment.lessonDate;
+            await createAutoTransaction(txDescription, payment.amount, txDate, payment.studentName, payment.studentId);
+        } else if (!payment.paid && wasPaid) {
+            // Unpaid → remove auto transaction
+            await removeAutoTransaction(txDescription);
+        }
+
         return { success: true };
     } catch (error) {
         console.error("Error saving lesson payment:", error);

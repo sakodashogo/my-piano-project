@@ -368,6 +368,15 @@ export default function FinanceView() {
         setIsAddModalOpen(true);
     };
 
+    const refreshTransactions = async () => {
+        const [txData, summaryData] = await Promise.all([
+            getTransactionsByMonth(selectedYear, selectedMonth),
+            getMonthlySummary(6),
+        ]);
+        setTransactions(txData);
+        setChartData(summaryData);
+    };
+
     const handleToggleLessonPayment = async (payment: LessonPayment) => {
         const updated = {
             ...payment,
@@ -375,7 +384,7 @@ export default function FinanceView() {
             paidDate: !payment.paid ? new Date().toLocaleDateString("ja-JP") : undefined,
         };
         await saveLessonPayment(updated);
-        await loadLessonPayments();
+        await Promise.all([loadLessonPayments(), refreshTransactions()]);
     };
 
     const handleToggleTuitionPayment = async (payment: TuitionPayment) => {
@@ -385,7 +394,7 @@ export default function FinanceView() {
             paidDate: !payment.paid ? new Date().toLocaleDateString("ja-JP") : undefined,
         };
         await saveTuitionPayment(updated);
-        await loadLessonPayments();
+        await Promise.all([loadLessonPayments(), refreshTransactions()]);
     };
 
     const handleUpdateLessonAmount = async (payment: LessonPayment, newAmount: number) => {
