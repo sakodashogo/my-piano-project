@@ -70,7 +70,10 @@ export default function FinanceView() {
     const [monthLessons, setMonthLessons] = useState<CalendarEvent[]>([]);
     const [loadingLessons, setLoadingLessons] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
-    const [lessonViewMode, setLessonViewMode] = useState<"monthly" | "per-lesson">("monthly");
+    const [paymentFilter, setPaymentFilter] = useState<"all" | "monthly" | "per-lesson">("all");
+    const [statusFilter, setStatusFilter] = useState<"all" | "unpaid" | "completed">("all");
+    const [expandedMemos, setExpandedMemos] = useState<Set<string>>(new Set());
+
 
     useEffect(() => {
         const fetchData = async () => {
@@ -218,18 +221,25 @@ export default function FinanceView() {
         if (activeTab === "lessons" && students.length > 0) {
             loadLessonPayments();
         }
-    }, [activeTab, selectedYear, selectedMonth, lessonViewMode, students]);
+    }, [activeTab, selectedYear, selectedMonth, students]);
 
     const loadLessonPayments = async () => {
         setLoadingLessons(true);
 
-        if (lessonViewMode === "monthly") {
-            // 月謝制の生徒
-            const monthlyStudents = students.filter((s) => !s.archived && s.paymentType === "monthly");
-            const tuitionData = await getTuitionPayments(selectedYear, selectedMonth + 1);
+        try {
+            // Load both types of data in parallel
+            const [tuitionData, lessonData, lessonEvents] = await Promise.all([
+                getTuitionPayments(selectedYear, selectedMonth + 1),
+                getLessonPayments(selectedYear, selectedMonth),
+                getLessons(
+                    new Date(selectedYear, selectedMonth, 1).toISOString(),
+                    new Date(selectedYear, selectedMonth + 1, 0).toISOString()
+                )
+            ]);
 
-            // 各月謝制生徒の支払いレコードを作成
-            const merged: TuitionPayment[] = monthlyStudents.map((student) => {
+            // 1. Process Monthly Students
+            const monthlyStudents = students.filter((s) => !s.archived && s.paymentType === "monthly");
+            const mergedTuition: TuitionPayment[] = monthlyStudents.map((student) => {
                 const existing = tuitionData.find((t) => t.studentId === student.id);
                 return existing || {
                     studentId: student.id,
@@ -238,28 +248,23 @@ export default function FinanceView() {
                     month: selectedMonth + 1,
                     paid: false,
                     amount: student.monthlyFee || 0,
+                    memo: ""
                 };
             });
-            setTuitionPayments(merged);
-        } else {
-            // 都度払いの生徒 - カレンダーからレッスン取得
-            const startOfMonth = new Date(selectedYear, selectedMonth, 1);
-            const endOfMonth = new Date(selectedYear, selectedMonth + 1, 0);
-            const lessons = await getLessons(startOfMonth.toISOString(), endOfMonth.toISOString());
-            setMonthLessons(lessons);
+            setTuitionPayments(mergedTuition);
 
+            // 2. Process Per-Lesson Students
+            setMonthLessons(lessonEvents);
             const perLessonStudents = students.filter((s) => !s.archived && s.paymentType === "per-lesson");
-            const payments = await getLessonPayments(selectedYear, selectedMonth);
 
-            // カレンダーのレッスンと生徒をマッチング
-            const merged: LessonPayment[] = lessons
+            // Map lessons to students and merge with payment status
+            const mergedLessons: LessonPayment[] = lessonEvents
                 .map((lesson) => {
-                    // カレンダーイベント名から生徒を探す（部分一致）
                     const student = perLessonStudents.find((s) => lesson.title.includes(s.name) || s.name.includes(lesson.title));
                     if (!student) return null;
 
                     const lessonDateStr = lesson.start.split("T")[0];
-                    const existing = payments.find((p) => p.lessonDate === lessonDateStr && p.studentId === student.id);
+                    const existing = lessonData.find((p) => p.lessonDate === lessonDateStr && p.studentId === student.id);
 
                     return existing || {
                         id: Date.now() + Math.random(),
@@ -268,14 +273,18 @@ export default function FinanceView() {
                         lessonDate: lessonDateStr,
                         amount: student.monthlyFee || 0,
                         paid: false,
+                        memo: ""
                     };
                 })
                 .filter((p): p is LessonPayment => p !== null);
 
-            setLessonPayments(merged);
-        }
+            setLessonPayments(mergedLessons);
 
-        setLoadingLessons(false);
+        } catch (error) {
+            console.error("Error loading lesson payments:", error);
+        } finally {
+            setLoadingLessons(false);
+        }
     };
 
     const handlePrevMonth = () => {
@@ -359,6 +368,15 @@ export default function FinanceView() {
         setIsAddModalOpen(true);
     };
 
+    const refreshTransactions = async () => {
+        const [txData, summaryData] = await Promise.all([
+            getTransactionsByMonth(selectedYear, selectedMonth),
+            getMonthlySummary(6),
+        ]);
+        setTransactions(txData);
+        setChartData(summaryData);
+    };
+
     const handleToggleLessonPayment = async (payment: LessonPayment) => {
         const updated = {
             ...payment,
@@ -366,7 +384,7 @@ export default function FinanceView() {
             paidDate: !payment.paid ? new Date().toLocaleDateString("ja-JP") : undefined,
         };
         await saveLessonPayment(updated);
-        await loadLessonPayments();
+        await Promise.all([loadLessonPayments(), refreshTransactions()]);
     };
 
     const handleToggleTuitionPayment = async (payment: TuitionPayment) => {
@@ -376,7 +394,7 @@ export default function FinanceView() {
             paidDate: !payment.paid ? new Date().toLocaleDateString("ja-JP") : undefined,
         };
         await saveTuitionPayment(updated);
-        await loadLessonPayments();
+        await Promise.all([loadLessonPayments(), refreshTransactions()]);
     };
 
     const handleUpdateLessonAmount = async (payment: LessonPayment, newAmount: number) => {
@@ -400,6 +418,60 @@ export default function FinanceView() {
             setIsSaving(false);
         }
     };
+
+    const handleUpdateTuitionMemo = async (payment: TuitionPayment, memo: string) => {
+        if (isSaving) return;
+        setIsSaving(true);
+        try {
+            await saveTuitionPayment({ ...payment, memo });
+            await loadLessonPayments();
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleUpdateLessonMemo = async (payment: LessonPayment, memo: string) => {
+        if (isSaving) return;
+        setIsSaving(true);
+        try {
+            await saveLessonPayment({ ...payment, memo });
+            await loadLessonPayments();
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+
+
+    // Calculation for Lessons Tab
+    const totalExpectedMonthly = tuitionPayments.reduce((sum, p) => sum + p.amount, 0);
+    const totalPaidMonthly = tuitionPayments.filter((p) => p.paid).reduce((sum, p) => sum + p.amount, 0);
+
+    const totalExpectedLesson = lessonPayments.reduce((sum, p) => sum + p.amount, 0);
+    const totalPaidLesson = lessonPayments.filter((p) => p.paid).reduce((sum, p) => sum + p.amount, 0);
+
+    const totalExpected = totalExpectedMonthly + totalExpectedLesson;
+    const totalPaid = totalPaidMonthly + totalPaidLesson;
+    const totalUnpaid = totalExpected - totalPaid;
+    const collectionRate = totalExpected > 0 ? Math.round((totalPaid / totalExpected) * 100) : 0;
+
+    const visibleStudents = students.filter((s) => {
+        if (s.archived) return false;
+        if (paymentFilter !== "all" && s.paymentType !== paymentFilter) return false;
+
+        if (statusFilter === "all") return true;
+
+        if (s.paymentType === "monthly") {
+            const p = tuitionPayments.find((tp) => tp.studentId === s.id);
+            const isPaid = p?.paid ?? false;
+            return statusFilter === "completed" ? isPaid : !isPaid;
+        } else {
+            const sLessons = lessonPayments.filter((lp) => lp.studentId === s.id);
+            if (sLessons.length === 0) return statusFilter === "completed";
+            const isAllPaid = sLessons.every((lp) => lp.paid);
+            return statusFilter === "completed" ? isAllPaid : !isAllPaid;
+        }
+    });
 
     return (
         <div className="space-y-6">
@@ -448,7 +520,7 @@ export default function FinanceView() {
             </div>
 
             {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                 <div className="glass-card p-5">
                     <div className="flex items-center gap-3 mb-3"><div className="p-2.5 bg-emerald-500/10 rounded-xl"><TrendingUp className="w-5 h-5 text-emerald-400" /></div><span className="text-sm text-slate-400">{formatMonthYear(selectedDate)}の収入</span></div>
                     <p className="text-2xl font-bold text-emerald-400">¥{totalIncome.toLocaleString()}</p>
@@ -503,155 +575,223 @@ export default function FinanceView() {
             )}
 
             {activeTab === "lessons" && (
-                <div className="glass-card">
-                    <div className="p-5 border-b border-pink-100">
+                <div className="space-y-6">
+                    {/* Summary Header */}
+                    <div className="glass-card p-6">
                         <div className="flex items-center justify-between mb-4">
+                            <h3 className="font-bold text-lg text-t-primary">{formatMonthYear(selectedDate)}の集金状況</h3>
+                            <span className="text-2xl font-bold text-accent">{collectionRate}% <span className="text-sm text-t-secondary font-normal">完了</span></span>
+                        </div>
+                        <div className="w-full bg-gray-100 rounded-full h-3 mb-6 overflow-hidden">
+                            <div className="bg-accent h-full rounded-full transition-all duration-500" style={{ width: `${collectionRate}%` }} />
+                        </div>
+                        <div className="grid grid-cols-3 gap-4 text-center divide-x divide-gray-100">
                             <div>
-                                <h3 className="font-semibold text-lg text-gray-700">{formatMonthYear(selectedDate)}のレッスン料支払い状況</h3>
-                                <p className="text-sm text-gray-500 mt-1">
-                                    {lessonViewMode === "monthly" ? (
-                                        <>支払い済み: {tuitionPayments.filter((p) => p.paid).length} / {tuitionPayments.length}件</>
-                                    ) : (
-                                        <>支払い済み: {lessonPayments.filter((p) => p.paid).length} / {lessonPayments.length}件</>
-                                    )}
-                                </p>
+                                <p className="text-xs text-t-secondary mb-1">予定総額</p>
+                                <p className="font-bold text-t-primary">¥{totalExpected.toLocaleString()}</p>
                             </div>
-                            <div className="flex gap-2 p-1 bg-accent-bg rounded-xl">
-                                <button
-                                    onClick={() => setLessonViewMode("monthly")}
-                                    className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${lessonViewMode === "monthly" ? "bg-accent text-white" : "text-t-secondary hover:bg-accent-bg-hover"
-                                        }`}
-                                >
-                                    <div className="flex items-center gap-2">
-                                        <Calendar className="w-4 h-4" />
-                                        月謝制
-                                    </div>
-                                </button>
-                                <button
-                                    onClick={() => setLessonViewMode("per-lesson")}
-                                    className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${lessonViewMode === "per-lesson" ? "bg-accent text-white" : "text-t-secondary hover:bg-accent-bg-hover"
-                                        }`}
-                                >
-                                    <div className="flex items-center gap-2">
-                                        <Receipt className="w-4 h-4" />
-                                        都度払い
-                                    </div>
-                                </button>
+                            <div>
+                                <p className="text-xs text-t-secondary mb-1">集金済み</p>
+                                <p className="font-bold text-emerald-500">¥{totalPaid.toLocaleString()}</p>
+                            </div>
+                            <div>
+                                <p className="text-xs text-t-secondary mb-1">未集金</p>
+                                <p className="font-bold text-rose-500">¥{totalUnpaid.toLocaleString()}</p>
                             </div>
                         </div>
                     </div>
+
+                    {/* Filters */}
+                    <div className="glass-card p-4 flex flex-wrap gap-4 items-center justify-between">
+                        <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0">
+                            <div className="flex bg-gray-100 p-1 rounded-lg">
+                                {(["all", "monthly", "per-lesson"] as const).map(type => (
+                                    <button
+                                        key={type}
+                                        onClick={() => setPaymentFilter(type)}
+                                        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${paymentFilter === type ? "bg-white text-accent shadow-sm" : "text-t-secondary hover:text-t-primary"}`}
+                                    >
+                                        {type === "all" ? "すべて" : type === "monthly" ? "月謝制" : "都度払い"}
+                                    </button>
+                                ))}
+                            </div>
+                            <div className="w-px h-6 bg-gray-200 mx-2" />
+                            <div className="flex bg-gray-100 p-1 rounded-lg">
+                                {(["all", "unpaid", "completed"] as const).map(status => (
+                                    <button
+                                        key={status}
+                                        onClick={() => setStatusFilter(status)}
+                                        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${statusFilter === status ? "bg-white text-accent shadow-sm" : "text-t-secondary hover:text-t-primary"}`}
+                                    >
+                                        {status === "all" ? "すべて" : status === "unpaid" ? "未払いあり" : "完了"}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Student Grid */}
                     {loadingLessons ? (
-                        <div className="p-8 text-center text-gray-400">読み込み中...</div>
-                    ) : lessonViewMode === "monthly" ? (
-                        // 月謝制の表示
-                        tuitionPayments.length === 0 ? (
-                            <div className="p-8 text-center text-gray-400">月謝制の生徒はいません</div>
-                        ) : (
-                            <div className="divide-y divide-pink-100">
-                                {tuitionPayments.sort((a, b) => a.studentName.localeCompare(b.studentName)).map((payment, idx) => (
-                                    <div key={`${payment.studentId}-${payment.year}-${payment.month}-${idx}`} className="p-4 flex items-center gap-4 hover:bg-pink-50 transition-colors">
-                                        <button
-                                            onClick={() => handleToggleTuitionPayment(payment)}
-                                            disabled={isSaving}
-                                            className={`p-2.5 rounded-lg transition-colors ${payment.paid ? "bg-emerald-100 hover:bg-emerald-200" : "bg-gray-100 hover:bg-gray-200"
-                                                } ${isSaving ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
-                                        >
-                                            {payment.paid ? <CheckCircle className="w-5 h-5 text-emerald-600" /> : <AlertCircle className="w-5 h-5 text-t-muted" />}
-                                        </button>
-                                        <div className="flex-1 min-w-0">
-                                            <p className={`font-medium ${payment.paid ? "text-t-muted line-through" : "text-t-primary"}`}>{payment.studentName}</p>
-                                            <p className="text-sm text-t-secondary">月謝 {payment.year}年{payment.month}月分</p>
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-sm text-t-secondary">¥</span>
-                                                <input
-                                                    type="number"
-                                                    defaultValue={payment.amount || ""}
-                                                    onBlur={(e) => {
-                                                        const newAmount = Number(e.target.value) || 0;
-                                                        if (newAmount !== payment.amount) {
-                                                            handleUpdateTuitionAmount(payment, newAmount);
-                                                        }
-                                                    }}
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === "Enter") {
-                                                            e.currentTarget.blur();
-                                                        }
-                                                    }}
-                                                    disabled={isSaving}
-                                                    className={`w-28 px-3 py-2 bg-input-bg border border-input-border rounded-lg text-right font-medium text-input-text focus:outline-none focus:ring-2 focus:ring-accent ${isSaving ? "opacity-50 cursor-not-allowed" : ""
-                                                        }`}
-                                                    placeholder="金額"
-                                                    min="0"
-                                                    step="100"
-                                                />
-                                            </div>
-                                            <span className={`text-sm font-medium px-3 py-1.5 rounded-full whitespace-nowrap ${payment.paid ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"
-                                                }`}>
-                                                {payment.paid ? "支払い済み" : "未払い"}
-                                            </span>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )
+                        <div className="p-12 text-center text-t-muted">読み込み中...</div>
+                    ) : visibleStudents.length === 0 ? (
+                        <div className="p-12 text-center text-t-muted bg-card-solid rounded-xl border border-card-border">該当する生徒はいません</div>
                     ) : (
-                        // 都度払いの表示
-                        lessonPayments.length === 0 ? (
-                            <div className="p-8 text-center text-gray-400">この月のレッスンはありません</div>
-                        ) : (
-                            <div className="divide-y divide-pink-100">
-                                {lessonPayments.sort((a, b) => new Date(a.lessonDate).getTime() - new Date(b.lessonDate).getTime()).map((payment, idx) => (
-                                    <div key={`${payment.studentId}-${payment.lessonDate}-${idx}`} className="p-4 flex items-center gap-4 hover:bg-pink-50 transition-colors">
-                                        <button
-                                            onClick={() => handleToggleLessonPayment(payment)}
-                                            disabled={isSaving}
-                                            className={`p-2.5 rounded-lg transition-colors ${payment.paid ? "bg-emerald-100 hover:bg-emerald-200" : "bg-gray-100 hover:bg-gray-200"
-                                                } ${isSaving ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
-                                        >
-                                            {payment.paid ? <CheckCircle className="w-5 h-5 text-emerald-600" /> : <AlertCircle className="w-5 h-5 text-t-muted" />}
-                                        </button>
-                                        <div className="flex-1 min-w-0">
-                                            <p className={`font-medium ${payment.paid ? "text-t-muted line-through" : "text-t-primary"}`}>{payment.studentName}</p>
-                                            <p className="text-sm text-t-secondary">
-                                                {new Date(payment.lessonDate).toLocaleDateString("ja-JP", { month: "short", day: "numeric", weekday: "short" })}
-                                            </p>
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-sm text-t-secondary">¥</span>
-                                                <input
-                                                    type="number"
-                                                    defaultValue={payment.amount || ""}
-                                                    onBlur={(e) => {
-                                                        const newAmount = Number(e.target.value) || 0;
-                                                        if (newAmount !== payment.amount) {
-                                                            handleUpdateLessonAmount(payment, newAmount);
-                                                        }
-                                                    }}
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === "Enter") {
-                                                            e.currentTarget.blur();
-                                                        }
-                                                    }}
-                                                    disabled={isSaving}
-                                                    className={`w-28 px-3 py-2 bg-input-bg border border-input-border rounded-lg text-right font-medium text-input-text focus:outline-none focus:ring-2 focus:ring-accent ${isSaving ? "opacity-50 cursor-not-allowed" : ""
-                                                        }`}
-                                                    placeholder="金額"
-                                                    min="0"
-                                                    step="100"
-                                                />
+                        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
+                            {visibleStudents.map((student) => {
+                                const isMonthly = student.paymentType === "monthly";
+                                const tuition = isMonthly ? tuitionPayments.find(t => t.studentId === student.id) : null;
+                                const lessons = !isMonthly ? lessonPayments.filter(l => l.studentId === student.id).sort((a, b) => new Date(a.lessonDate).getTime() - new Date(b.lessonDate).getTime()) : [];
+
+                                const hasUnpaid = isMonthly
+                                    ? !(tuition?.paid)
+                                    : lessons.some(l => !l.paid) || lessons.length === 0; // If no lessons, consider it as nothing to pay, but maybe highlight?
+
+                                const key = `memo-${student.id}`;
+                                const isMemoExpanded = expandedMemos.has(key);
+
+                                return (
+                                    <div key={student.id} className={`glass-card p-0 overflow-hidden border-l-4 ${hasUnpaid ? "border-l-rose-400" : "border-l-emerald-400"}`}>
+                                        <div className="p-4 border-b border-gray-50 bg-white/50 flex justify-between items-start">
+                                            <div>
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <h4 className="font-bold text-t-primary">{student.name}</h4>
+                                                    <span className={`text-[10px] px-2 py-0.5 rounded-full border ${isMonthly ? "bg-blue-50 text-blue-600 border-blue-100" : "bg-orange-50 text-orange-600 border-orange-100"}`}>
+                                                        {isMonthly ? "月謝制" : "都度払い"}
+                                                    </span>
+                                                </div>
+                                                <p className="text-xs text-t-secondary">
+                                                    {isMonthly ? `${selectedMonth + 1}月分月謝` : `${lessons.length}回レッスン`}
+                                                </p>
                                             </div>
-                                            <span className={`text-sm font-medium px-3 py-1.5 rounded-full whitespace-nowrap ${payment.paid ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"
-                                                }`}>
-                                                {payment.paid ? "支払い済み" : "未払い"}
-                                            </span>
+                                            <button
+                                                onClick={() => {
+                                                    const newSet = new Set(expandedMemos);
+                                                    if (newSet.has(key)) newSet.delete(key);
+                                                    else newSet.add(key);
+                                                    setExpandedMemos(newSet);
+                                                }}
+                                                className={`p-1.5 rounded-lg transition-colors ${isMemoExpanded || (isMonthly ? tuition?.memo : lessons.some(l => l.memo)) ? "bg-yellow-50 text-yellow-600" : "text-gray-300 hover:bg-gray-50"}`}
+                                            >
+                                                <Receipt className="w-4 h-4" />
+                                            </button>
+                                        </div>
+
+                                        <div className="p-4 space-y-4">
+                                            {/* Generic Memo Field (Collapsible) */}
+                                            {(isMemoExpanded || (isMonthly ? tuition?.memo : lessons[0]?.memo)) && (
+                                                <div className="mb-3">
+                                                    {isMonthly && tuition ? (
+                                                        <input
+                                                            className="w-full text-xs bg-yellow-50 border border-yellow-100 rounded-lg px-2 py-1.5 text-t-primary placeholder-yellow-300 focus:border-yellow-300 focus:ring-1 focus:ring-yellow-300 transition-all"
+                                                            placeholder="メモ（次回まとめて等）"
+                                                            defaultValue={tuition.memo || ""}
+                                                            onBlur={(e) => {
+                                                                if (e.target.value !== tuition.memo) handleUpdateTuitionMemo(tuition, e.target.value);
+                                                            }}
+                                                        />
+                                                    ) : !isMonthly && lessons.length > 0 ? (
+                                                        // For per-lesson, we just use the first lesson's memo as a "general" memo for now, or we need a student-month memo?
+                                                        // The backend only supports memo per payment. Let's attach to the latest lesson or just show the last one?
+                                                        // Let's use the first lesson for simplicity or iterate. 
+                                                        // Plan said "memo per student card". 
+                                                        // I'll attach it to the LAST lesson of the month for visibility, or all? 
+                                                        // Let's just show distinct memos if multiple?
+                                                        // Or just allow editing the latest lesson's memo.
+                                                        <div className="space-y-1">
+                                                            {lessons.map((l, idx) => (
+                                                                <div key={l.id} className="flex gap-1">
+                                                                    <span className="text-[10px] text-t-secondary w-8 pt-1">{new Date(l.lessonDate).getDate()}日</span>
+                                                                    <input
+                                                                        className="flex-1 text-xs bg-yellow-50 border border-yellow-100 rounded-lg px-2 py-1 text-t-primary placeholder-yellow-300 focus:border-yellow-300 focus:ring-1 focus:ring-yellow-300"
+                                                                        placeholder="メモ"
+                                                                        defaultValue={l.memo || ""}
+                                                                        onBlur={(e) => {
+                                                                            if (e.target.value !== l.memo) handleUpdateLessonMemo(l, e.target.value);
+                                                                        }}
+                                                                    />
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    ) : null}
+                                                </div>
+                                            )}
+
+                                            {isMonthly && tuition ? (
+                                                <div className="flex items-center justify-between gap-3">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-sm font-bold text-t-primary">¥</span>
+                                                        <input
+                                                            type="number"
+                                                            defaultValue={tuition.amount}
+                                                            className="w-20 px-2 py-1 bg-gray-50 border border-gray-200 rounded text-right font-bold text-t-primary focus:border-accent focus:ring-1 focus:ring-accent"
+                                                            onBlur={(e) => {
+                                                                const val = parseInt(e.target.value);
+                                                                if (!isNaN(val) && val !== tuition.amount) handleUpdateTuitionAmount(tuition, val);
+                                                            }}
+                                                        />
+                                                    </div>
+                                                    <button
+                                                        onClick={() => handleToggleTuitionPayment(tuition)}
+                                                        disabled={isSaving}
+                                                        className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-bold text-sm transition-all shadow-sm ${tuition.paid
+                                                            ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                                                            : "bg-white border border-gray-200 text-gray-400 hover:border-emerald-200 hover:text-emerald-500"}`}
+                                                    >
+                                                        {tuition.paid ? (
+                                                            <><CheckCircle className="w-4 h-4" /> 支払い済み</>
+                                                        ) : (
+                                                            "未払い"
+                                                        )}
+                                                    </button>
+                                                </div>
+                                            ) : !isMonthly ? (
+                                                <div className="space-y-3">
+                                                    {lessons.length === 0 ? (
+                                                        <div className="text-center text-xs text-t-muted py-2 border border-dashed border-gray-200 rounded-lg">レッスン記録なし</div>
+                                                    ) : (
+                                                        lessons.map((lesson) => (
+                                                            <div key={lesson.id} className="flex items-center justify-between group">
+                                                                <div className="flex items-center gap-3">
+                                                                    <div
+                                                                        onClick={() => handleToggleLessonPayment(lesson)}
+                                                                        className={`w-5 h-5 rounded border flex items-center justify-center cursor-pointer transition-colors ${lesson.paid ? "bg-emerald-500 border-emerald-500" : "border-gray-300 group-hover:border-emerald-400"}`}
+                                                                    >
+                                                                        {lesson.paid && <CheckCircle className="w-3.5 h-3.5 text-white" />}
+                                                                    </div>
+                                                                    <div className="text-sm">
+                                                                        <span className="font-medium text-t-primary">{new Date(lesson.lessonDate).getDate()}日</span>
+                                                                        <span className="text-xs text-t-secondary ml-1">({new Date(lesson.lessonDate).toLocaleDateString("ja-JP", { weekday: "short" })})</span>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="flex items-center gap-1">
+                                                                    <input
+                                                                        type="number"
+                                                                        defaultValue={lesson.amount}
+                                                                        className={`w-16 px-1 py-0.5 text-right text-sm bg-transparent border-b border-transparent focus:border-accent hover:border-gray-200 transition-colors ${lesson.paid ? "text-emerald-600 font-medium" : "text-t-secondary"}`}
+                                                                        onBlur={(e) => {
+                                                                            const val = parseInt(e.target.value);
+                                                                            if (!isNaN(val) && val !== lesson.amount) handleUpdateLessonAmount(lesson, val);
+                                                                        }}
+                                                                    />
+                                                                    <span className="text-xs text-t-muted">円</span>
+                                                                </div>
+                                                            </div>
+                                                        ))
+                                                    )}
+                                                    <div className="pt-3 mt-3 border-t border-dashed border-gray-100 flex justify-between items-center">
+                                                        <span className="text-xs text-t-secondary font-medium">合計（{lessons.filter(l => l.paid).length}/{lessons.length}回）</span>
+                                                        <span className="font-bold text-t-primary">
+                                                            ¥{lessons.reduce((sum, l) => sum + (l.paid ? l.amount : 0), 0).toLocaleString()}
+                                                            <span className="text-xs font-normal text-t-muted"> / ¥{lessons.reduce((sum, l) => sum + l.amount, 0).toLocaleString()}</span>
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            ) : null}
                                         </div>
                                     </div>
-                                ))}
-                            </div>
-                        )
+                                );
+                            })}
+                        </div>
                     )}
                 </div>
             )}
@@ -786,9 +926,9 @@ export default function FinanceView() {
 
             {/* Add/Edit Modal */}
             {isAddModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
-                    <div className="absolute inset-0 bg-modal-overlay backdrop-blur-sm" onClick={() => { setIsAddModalOpen(false); setEditingTransaction(null); }} />
-                    <div className="relative z-10 w-full max-w-md bg-modal-bg border border-modal-border rounded-3xl p-8 shadow-2xl">
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+                    <div className="fixed inset-0 bg-modal-overlay backdrop-blur-sm" onClick={() => { setIsAddModalOpen(false); setEditingTransaction(null); }} />
+                    <div className="relative z-10 w-full sm:max-w-md lg:max-w-lg bg-modal-bg border border-modal-border rounded-t-3xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto safe-area-bottom shadow-xl">
                         <button onClick={() => { setIsAddModalOpen(false); setEditingTransaction(null); }} className="absolute top-6 right-6 p-2 text-t-muted hover:text-t-primary"><X className="w-6 h-6" /></button>
                         <h3 className="text-2xl font-bold text-gradient mb-6">{editingTransaction ? "取引を編集" : "収支を記録"}</h3>
                         <div className="flex gap-2 p-1 bg-accent-bg rounded-xl mb-6">
