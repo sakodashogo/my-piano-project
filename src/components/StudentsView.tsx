@@ -354,6 +354,11 @@ export default function StudentsView({ initialStudentId }: StudentsViewProps = {
                                         {student.status && student.status !== "継続中" && (
                                             <span className={`text-xs px-2 py-0.5 rounded-full ${student.status === "休会中" ? "bg-amber-500/20 text-amber-400" : "bg-rose-500/20 text-rose-400"}`}>{student.status}</span>
                                         )}
+                                        {student.paymentType && (
+                                            <span className={`text-xs px-2 py-0.5 rounded-full ${student.paymentType === "monthly" ? "bg-emerald-500/20 text-emerald-600" : "bg-orange-500/20 text-orange-600"}`}>
+                                                {student.paymentType === "monthly" ? "月謝" : "都度"}
+                                            </span>
+                                        )}
                                         {student.archived && <span className="text-xs px-2 py-0.5 bg-amber-500/20 text-amber-400 rounded-full">アーカイブ</span>}
                                     </div>
                                     <p className="text-sm text-gray-500 flex items-center gap-1.5 mt-1"><Calendar className="w-3.5 h-3.5" />{student.lessonDay}</p>
@@ -398,6 +403,12 @@ export default function StudentsView({ initialStudentId }: StudentsViewProps = {
                                         <p className="text-gray-500 flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5" />{selectedStudent.address}</p>
                                         {selectedStudent.email && <p className="text-gray-500 flex items-center gap-1.5"><Mail className="w-3.5 h-3.5" />{selectedStudent.email}</p>}
                                         {selectedStudent.birthDate && <p className="text-gray-500 flex items-center gap-1.5"><Cake className="w-3.5 h-3.5" />{selectedStudent.birthDate}</p>}
+                                        <p className="text-gray-500 flex items-center gap-1.5">
+                                            <span className={`px-1.5 py-0.5 rounded text-[10px] ${selectedStudent.paymentType === "monthly" ? "bg-emerald-100 text-emerald-700" : "bg-orange-100 text-orange-700"}`}>
+                                                {selectedStudent.paymentType === "monthly" ? "月謝制" : "都度払い"}
+                                            </span>
+                                            ¥{(selectedStudent.monthlyFee || 0).toLocaleString()}
+                                        </p>
                                     </div>
                                     {(selectedStudent.parentName || selectedStudent.parentPhone) && (
                                         <div className="mt-1.5 text-xs sm:text-sm text-gray-500 flex items-center gap-1.5 border-t border-pink-100 pt-1.5">
@@ -652,6 +663,8 @@ export default function StudentsView({ initialStudentId }: StudentsViewProps = {
                                     pieces: editingStudent ? editingStudent.pieces : [],
                                     archived: editingStudent?.archived || false,
                                     recitalHistory: editingStudent?.recitalHistory || [],
+                                    paymentType: (formData.get("paymentType") as "monthly" | "per-lesson") || "monthly",
+                                    monthlyFee: Number(formData.get("monthlyFee")) || 0,
                                 };
 
                                 await saveStudent(newStudentData);
@@ -721,6 +734,22 @@ export default function StudentsView({ initialStudentId }: StudentsViewProps = {
                                             <option value="休会中">休会中</option>
                                             <option value="退会">退会</option>
                                         </select>
+                                    </div>
+
+                                    {/* Payment Settings */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-t-secondary mb-2">支払い方法</label>
+                                        <select name="paymentType" defaultValue={editingStudent?.paymentType || "monthly"} className="w-full px-4 py-3 bg-input-bg border border-input-border rounded-xl text-input-text focus:border-input-border-focus">
+                                            <option value="monthly">月謝制</option>
+                                            <option value="per-lesson">都度払い</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-t-secondary mb-2">料金 (月謝 または 1回)</label>
+                                        <div className="relative">
+                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-t-muted">¥</span>
+                                            <input name="monthlyFee" type="number" defaultValue={editingStudent?.monthlyFee} className="w-full pl-8 pr-4 py-3 bg-input-bg border border-input-border rounded-xl text-input-text focus:border-input-border-focus" placeholder="0" />
+                                        </div>
                                     </div>
                                     <div><label className="block text-sm font-medium text-t-secondary mb-2">保護者氏名</label><input name="parentName" defaultValue={editingStudent?.parentName} className="w-full px-4 py-3 bg-input-bg border border-input-border rounded-xl text-input-text focus:border-input-border-focus" placeholder="例: 山田 太郎" /></div>
                                     <div><label className="block text-sm font-medium text-t-secondary mb-2">保護者電話番号</label><input name="parentPhone" defaultValue={editingStudent?.parentPhone} className="w-full px-4 py-3 bg-input-bg border border-input-border rounded-xl text-input-text focus:border-input-border-focus" placeholder="例: 090-0000-0000" /></div>

@@ -21,6 +21,7 @@ export interface TuitionPayment {
     paid: boolean;
     paidDate?: string;
     amount: number;
+    memo?: string;
 }
 
 // Per-lesson payment for 都度払い
@@ -32,6 +33,7 @@ export interface LessonPayment {
     amount: number;
     paid: boolean;
     paidDate?: string;
+    memo?: string;
 }
 
 const FINANCE_SHEET = "Finance";
@@ -245,6 +247,7 @@ export async function getTuitionPayments(year: number, month: number): Promise<T
                 paid: row[4] === "TRUE" || row[4] === "true",
                 paidDate: row[5] || undefined,
                 amount: Number(row[6]) || 0,
+                memo: row[7] || "",
             }));
     } catch (error) {
         console.error("Error fetching tuition payments:", error);
@@ -260,7 +263,7 @@ export async function saveTuitionPayment(payment: TuitionPayment) {
         // Check if record exists
         const existingPayments = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
-            range: `'${TUITION_SHEET}'!A2:G`,
+            range: `'${TUITION_SHEET}'!A2:H`,
         });
 
         const rows = existingPayments.data.values || [];
@@ -279,6 +282,7 @@ export async function saveTuitionPayment(payment: TuitionPayment) {
             payment.paid,
             payment.paidDate || "",
             payment.amount,
+            payment.memo || "",
         ];
 
         if (existingIndex !== -1) {
@@ -286,7 +290,7 @@ export async function saveTuitionPayment(payment: TuitionPayment) {
             const rowNumber = existingIndex + 2;
             await sheets.spreadsheets.values.update({
                 spreadsheetId: SPREADSHEET_ID,
-                range: `'${TUITION_SHEET}'!A${rowNumber}:G${rowNumber}`,
+                range: `'${TUITION_SHEET}'!A${rowNumber}:H${rowNumber}`,
                 valueInputOption: "USER_ENTERED",
                 requestBody: {
                     values: [rowData],
@@ -318,7 +322,7 @@ export async function getLessonPayments(year: number, month: number): Promise<Le
         const sheets = await getSheetsClient();
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
-            range: `${LESSON_PAYMENTS_SHEET}!A2:G`,
+            range: `${LESSON_PAYMENTS_SHEET}!A2:H`,
         });
 
         const rows = response.data.values;
@@ -337,6 +341,7 @@ export async function getLessonPayments(year: number, month: number): Promise<Le
                 amount: Number(row[4]) || 0,
                 paid: row[5] === "TRUE" || row[5] === "true",
                 paidDate: row[6] || undefined,
+                memo: row[7] || "",
             }));
     } catch (error) {
         console.error("Error fetching lesson payments:", error);
@@ -352,7 +357,7 @@ export async function saveLessonPayment(payment: LessonPayment) {
         // Check if record exists
         const existingPayments = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
-            range: `${LESSON_PAYMENTS_SHEET}!A2:G`,
+            range: `${LESSON_PAYMENTS_SHEET}!A2:H`,
         });
 
         const rows = existingPayments.data.values || [];
@@ -366,6 +371,7 @@ export async function saveLessonPayment(payment: LessonPayment) {
             payment.amount,
             payment.paid,
             payment.paidDate || "",
+            payment.memo || "",
         ];
 
         if (existingIndex !== -1) {
@@ -373,7 +379,7 @@ export async function saveLessonPayment(payment: LessonPayment) {
             const rowNumber = existingIndex + 2;
             await sheets.spreadsheets.values.update({
                 spreadsheetId: SPREADSHEET_ID,
-                range: `${LESSON_PAYMENTS_SHEET}!A${rowNumber}:G${rowNumber}`,
+                range: `${LESSON_PAYMENTS_SHEET}!A${rowNumber}:H${rowNumber}`,
                 valueInputOption: "USER_ENTERED",
                 requestBody: {
                     values: [rowData],
