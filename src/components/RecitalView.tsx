@@ -321,12 +321,12 @@ export default function RecitalView() {
 
     return (
         <div className="space-y-6">
-            <header className="flex items-center justify-between">
+            <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                    <h2 className="text-3xl font-bold text-gradient mb-2">発表会管理</h2>
-                    <p className="text-t-secondary">発表会の日程・曲目・参加者を管理</p>
+                    <h2 className="text-2xl sm:text-3xl font-bold text-gradient mb-1 sm:mb-2">発表会管理</h2>
+                    <p className="text-sm sm:text-base text-t-secondary">発表会の日程・曲目・参加者を管理</p>
                 </div>
-                <button onClick={() => { setEditingRecital(null); setIsAddModalOpen(true); }} className="flex items-center gap-2 px-5 py-3 premium-gradient rounded-xl font-medium text-white shadow-lg hover:shadow-xl transition-all hover:scale-105">
+                <button onClick={() => { setEditingRecital(null); setIsAddModalOpen(true); }} className="flex items-center justify-center gap-2 px-5 py-3 premium-gradient rounded-xl font-medium text-white shadow-lg hover:shadow-xl transition-all sm:hover:scale-105 w-full sm:w-auto">
                     <Plus className="w-5 h-5" />発表会を追加
                 </button>
             </header>

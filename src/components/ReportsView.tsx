@@ -191,18 +191,18 @@ export default function ReportsView({ initialStudentId }: { initialStudentId?: n
 
     return (
         <div className="space-y-6 max-w-5xl mx-auto pb-20">
-            <header className="flex items-center justify-between">
+            <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
                 <div>
-                    <h2 className="text-3xl font-bold text-gradient mb-2">レッスン報告</h2>
-                    <p className="text-gray-500">保護者へのレッスン報告メッセージを作成します</p>
+                    <h2 className="text-2xl sm:text-3xl font-bold text-gradient mb-1 sm:mb-2">レッスン報告</h2>
+                    <p className="text-sm sm:text-base text-gray-500">保護者へのレッスン報告メッセージを作成します</p>
                 </div>
                 {/* Step Indicator */}
-                <div className="flex items-center gap-2 bg-card-solid px-4 py-2 rounded-full border border-card-border">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step >= 1 ? "bg-accent text-white" : "bg-input-bg text-t-muted"}`}>1</div>
-                    <div className={`w-8 h-1 ${step >= 2 ? "bg-accent" : "bg-input-bg"}`}></div>
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step >= 2 ? "bg-accent text-white" : "bg-input-bg text-t-muted"}`}>2</div>
-                    <div className={`w-8 h-1 ${step >= 3 ? "bg-accent" : "bg-input-bg"}`}></div>
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step >= 3 ? "bg-accent text-white" : "bg-input-bg text-t-muted"}`}>3</div>
+                <div className="flex items-center gap-1.5 sm:gap-2 bg-card-solid px-3 sm:px-4 py-2 rounded-full border border-card-border self-start sm:self-auto">
+                    <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold ${step >= 1 ? "bg-accent text-white" : "bg-input-bg text-t-muted"}`}>1</div>
+                    <div className={`w-5 sm:w-8 h-1 ${step >= 2 ? "bg-accent" : "bg-input-bg"}`}></div>
+                    <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold ${step >= 2 ? "bg-accent text-white" : "bg-input-bg text-t-muted"}`}>2</div>
+                    <div className={`w-5 sm:w-8 h-1 ${step >= 3 ? "bg-accent" : "bg-input-bg"}`}></div>
+                    <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold ${step >= 3 ? "bg-accent text-white" : "bg-input-bg text-t-muted"}`}>3</div>
                 </div>
             </header>
 
